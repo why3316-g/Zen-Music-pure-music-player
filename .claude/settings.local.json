@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(gstack)",
+      "Skill(gstack:*)",
+      "Bash(npm install *)",
+      "Bash(export https_proxy=http://127.0.0.1:7897)",
+      "Bash(export http_proxy=http://127.0.0.1:7897)",
+      "Bash(rm -rf node_modules package-lock.json)",
+      "Bash(ELECTRON_MIRROR=\"https://npmmirror.com/mirrors/electron/\" npm install)",
+      "Bash(npx electron-vite *)",
+      "Bash(tasklist)",
+      "Bash(taskkill //F //IM electron.exe)",
+      "Bash(node -e ' *)",
+      "Bash(npx electron *)",
+      "Bash(node -e \"const pkg = require\\('./node_modules/electron/package.json'\\); console.log\\('electron version:', pkg.version\\)\")"
+    ]
+  }
+}

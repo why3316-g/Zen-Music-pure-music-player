@@ -1,0 +1,33 @@
+[data-theme="apple"] {
+  --bg-primary: #1c1c1e;
+  --bg-secondary: #2c2c2e;
+  --bg-tertiary: #3a3a3c;
+  --bg-elevated: rgba(44, 44, 46, 0.85);
+  --bg-player: rgba(28, 28, 30, 0.92);
+
+  --text-primary: #ffffff;
+  --text-secondary: #98989f;
+  --text-tertiary: #636366;
+
+  --accent: #fc3c44;
+  --accent-hover: #e0353c;
+  --accent-soft: rgba(252, 60, 68, 0.15);
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(255, 255, 255, 0.15);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+
+  --titlebar-bg: rgba(28, 28, 30, 0.85);
+  --titlebar-height: 38px;
+
+  --player-height: 72px;
+  --sidebar-width: 280px;
+}
