@@ -22,23 +22,25 @@ function draw() {
 
   analyser.getByteFrequencyData(dataArray)
 
-  const { width, height } = canvas
-  ctx.clearRect(0, 0, width, height)
+  const w = canvas.width
+  const h = canvas.height
+  ctx.clearRect(0, 0, w, h)
 
-  const barCount = Math.min(dataArray.length, 64)
-  const gap = 2
-  const barWidth = (width - gap * (barCount - 1)) / barCount
+  const barCount = Math.min(dataArray.length, 48)
+  const gap = 3
+  const barWidth = (w - gap * (barCount - 1)) / barCount
 
   for (let i = 0; i < barCount; i++) {
     const value = dataArray[i] / 255
-    const barHeight = value * height * 0.9
+    const barHeight = value * h * 0.95
 
     const x = i * (barWidth + gap)
-    const y = height - barHeight
+    const y = h - barHeight
 
-    const gradient = ctx.createLinearGradient(x, y, x, height)
-    gradient.addColorStop(0, 'rgba(102, 126, 234, 0.9)')
-    gradient.addColorStop(1, 'rgba(118, 75, 162, 0.4)')
+    const gradient = ctx.createLinearGradient(x, y, x, h)
+    gradient.addColorStop(0, 'rgba(102, 126, 234, 0.95)')
+    gradient.addColorStop(0.5, 'rgba(118, 75, 162, 0.6)')
+    gradient.addColorStop(1, 'rgba(118, 75, 162, 0.1)')
 
     ctx.fillStyle = gradient
     ctx.beginPath()
@@ -46,8 +48,8 @@ function draw() {
     ctx.moveTo(x + radius, y)
     ctx.lineTo(x + barWidth - radius, y)
     ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius)
-    ctx.lineTo(x + barWidth, height)
-    ctx.lineTo(x, height)
+    ctx.lineTo(x + barWidth, h)
+    ctx.lineTo(x, h)
     ctx.lineTo(x, y + radius)
     ctx.quadraticCurveTo(x, y, x + radius, y)
     ctx.fill()
@@ -73,10 +75,8 @@ function resizeCanvas() {
   const canvas = canvasRef.value
   if (!canvas) return
   const rect = canvas.getBoundingClientRect()
-  canvas.width = rect.width * window.devicePixelRatio
-  canvas.height = rect.height * window.devicePixelRatio
-  const ctx = canvas.getContext('2d')
-  if (ctx) ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
+  canvas.width = rect.width
+  canvas.height = rect.height
 }
 
 watch(() => player.isPlaying, (playing) => {
@@ -111,9 +111,10 @@ onUnmounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 80px;
+  height: 100px;
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.7;
+  z-index: 1;
 }
 
 .visualizer__canvas {

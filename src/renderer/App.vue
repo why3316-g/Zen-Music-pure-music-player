@@ -8,8 +8,10 @@ import { audioEngine } from './services/audio-engine'
 import Player from './components/Player.vue'
 import Playlist from './components/Playlist.vue'
 import Visualizer from './components/Visualizer.vue'
+import VinylDisc from './components/VinylDisc.vue'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
 import './themes/apple/styles.css'
+import './themes/vinyl/styles.css'
 
 const playlist = usePlaylistStore()
 const player = usePlayerStore()
@@ -116,7 +118,8 @@ onMounted(() => {
           <button class="add-btn" @click="openFiles">添加音乐</button>
         </div>
         <div v-else class="center__content">
-          <div class="now-playing" v-if="player.currentTrack">
+          <VinylDisc />
+          <div class="now-playing" v-if="player.currentTrack && theme.currentTheme !== 'vinyl'">
             <div class="now-playing__cover" v-if="player.currentTrack.coverUrl">
               <img :src="player.currentTrack.coverUrl" alt="cover" />
             </div>
@@ -125,6 +128,11 @@ onMounted(() => {
             </div>
             <div class="now-playing__title">{{ player.currentTrack.title }}</div>
             <div class="now-playing__artist">{{ player.currentTrack.artist }}</div>
+          </div>
+          <!-- Track info below vinyl disc -->
+          <div class="vinyl-info" v-if="theme.currentTheme === 'vinyl' && player.currentTrack">
+            <div class="vinyl-info__title">{{ player.currentTrack.title }}</div>
+            <div class="vinyl-info__artist">{{ player.currentTrack.artist }}</div>
           </div>
           <Visualizer />
         </div>
@@ -343,6 +351,26 @@ html, body, #app {
 .now-playing__artist {
   font-size: 14px;
   opacity: 0.5;
+}
+
+.vinyl-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 16px;
+}
+
+.vinyl-info__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary, #f5e6d3);
+}
+
+.vinyl-info__artist {
+  font-size: 14px;
+  opacity: 0.5;
+  color: var(--text-secondary, #c4a882);
 }
 
 .drag-overlay {

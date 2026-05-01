@@ -1,15 +1,15 @@
 {
   "name": "sonicvibe",
   "version": "0.1.0",
-  "description": "Windows desktop music player with multi-theme UI and audio visualization",
+  "author": "SonicVibe",
   "type": "commonjs",
   "main": "./out/main/main.js",
   "scripts": {
     "dev": "node scripts/dev.js",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
+    "pack": "electron-builder --win --dir",
+    "dist": "electron-builder --win portable",
     "test": "vitest run",
     "test:watch": "vitest"
   },

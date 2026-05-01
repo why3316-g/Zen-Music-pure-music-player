@@ -1,0 +1,33 @@
+[data-theme="vinyl"] {
+  --bg-primary: #1a1410;
+  --bg-secondary: #2a2018;
+  --bg-tertiary: #3a2e22;
+  --bg-elevated: rgba(42, 32, 24, 0.9);
+  --bg-player: rgba(26, 20, 16, 0.95);
+
+  --text-primary: #f5e6d3;
+  --text-secondary: #c4a882;
+  --text-tertiary: #8b6f5c;
+
+  --accent: #c23a3a;
+  --accent-hover: #a83232;
+  --accent-soft: rgba(194, 58, 58, 0.15);
+
+  --border: rgba(196, 168, 130, 0.1);
+  --border-active: rgba(196, 168, 130, 0.2);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.7);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+
+  --titlebar-bg: rgba(26, 20, 16, 0.9);
+  --titlebar-height: 38px;
+
+  --player-height: 100px;
+  --sidebar-width: 280px;
+}
