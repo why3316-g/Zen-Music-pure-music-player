@@ -2,65 +2,122 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { TrackInfo } from '../utils/types'
 
-export const usePlaylistStore = defineStore('playlist', () => {
-  const tracks = ref<TrackInfo[]>([])
-  const currentIndex = ref(-1)
+interface PlayList {
+  id: string
+  name: string
+  tracks: TrackInfo[]
+  currentIndex: number
+}
 
+function uid(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+}
+
+export const usePlaylistStore = defineStore('playlist', () => {
+  const lists = ref<PlayList[]>([
+    { id: uid(), name: '默认列表', tracks: [], currentIndex: -1 }
+  ])
+  const activeListId = ref(lists.value[0].id)
+
+  const activeList = computed(() =>
+    lists.value.find(l => l.id === activeListId.value) || lists.value[0]
+  )
+
+  const tracks = computed(() => activeList.value.tracks)
+  const currentIndex = computed({
+    get: () => activeList.value.currentIndex,
+    set: (v: number) => { activeList.value.currentIndex = v }
+  })
   const currentTrack = computed(() =>
     currentIndex.value >= 0 ? tracks.value[currentIndex.value] : null
   )
+  const currentListName = computed(() => activeList.value.name)
 
   function addTracks(newTracks: TrackInfo[]) {
-    const startIdx = tracks.value.length
-    tracks.value.push(...newTracks)
-    if (currentIndex.value === -1 && newTracks.length > 0) {
-      currentIndex.value = startIdx
+    const list = activeList.value
+    const startIdx = list.tracks.length
+    list.tracks.push(...newTracks)
+    if (list.currentIndex === -1 && newTracks.length > 0) {
+      list.currentIndex = startIdx
     }
   }
 
   function removeTrack(index: number) {
-    tracks.value.splice(index, 1)
-    if (tracks.value.length === 0) {
-      currentIndex.value = -1
-    } else if (index < currentIndex.value) {
-      currentIndex.value--
-    } else if (index === currentIndex.value) {
-      currentIndex.value = Math.min(currentIndex.value, tracks.value.length - 1)
+    const list = activeList.value
+    list.tracks.splice(index, 1)
+    if (list.tracks.length === 0) {
+      list.currentIndex = -1
+    } else if (index < list.currentIndex) {
+      list.currentIndex--
+    } else if (index === list.currentIndex) {
+      list.currentIndex = Math.min(list.currentIndex, list.tracks.length - 1)
     }
   }
 
   function clear() {
-    tracks.value = []
-    currentIndex.value = -1
+    const list = activeList.value
+    list.tracks = []
+    list.currentIndex = -1
   }
 
   function setCurrentIndex(index: number) {
-    if (index >= 0 && index < tracks.value.length) {
-      currentIndex.value = index
+    const list = activeList.value
+    if (index >= 0 && index < list.tracks.length) {
+      list.currentIndex = index
     }
   }
 
   function next(): number {
-    if (tracks.value.length === 0) return -1
-    currentIndex.value = (currentIndex.value + 1) % tracks.value.length
-    return currentIndex.value
+    const list = activeList.value
+    if (list.tracks.length === 0) return -1
+    list.currentIndex = (list.currentIndex + 1) % list.tracks.length
+    return list.currentIndex
   }
 
   function prev(): number {
-    if (tracks.value.length === 0) return -1
-    currentIndex.value = (currentIndex.value - 1 + tracks.value.length) % tracks.value.length
-    return currentIndex.value
+    const list = activeList.value
+    if (list.tracks.length === 0) return -1
+    list.currentIndex = (list.currentIndex - 1 + list.tracks.length) % list.tracks.length
+    return list.currentIndex
+  }
+
+  function createList(name: string) {
+    const list: PlayList = { id: uid(), name, tracks: [], currentIndex: -1 }
+    lists.value.push(list)
+    activeListId.value = list.id
+  }
+
+  function deleteList(id: string) {
+    if (lists.value.length <= 1) return
+    const idx = lists.value.findIndex(l => l.id === id)
+    if (idx === -1) return
+    lists.value.splice(idx, 1)
+    if (activeListId.value === id) {
+      activeListId.value = lists.value[0].id
+    }
+  }
+
+  function switchList(id: string) {
+    const list = lists.value.find(l => l.id === id)
+    if (list) activeListId.value = id
+  }
+
+  /** Serialize for persistence */
+  function toJSON() {
+    return { lists: lists.value, activeListId: activeListId.value }
+  }
+
+  /** Restore from persistence */
+  function fromJSON(data: { lists: PlayList[]; activeListId: string }) {
+    if (data?.lists?.length) {
+      lists.value = data.lists
+      activeListId.value = data.activeListId || data.lists[0].id
+    }
   }
 
   return {
-    tracks,
-    currentIndex,
-    currentTrack,
-    addTracks,
-    removeTrack,
-    clear,
-    setCurrentIndex,
-    next,
-    prev
+    lists, activeListId, tracks, currentIndex, currentTrack, currentListName,
+    addTracks, removeTrack, clear, setCurrentIndex, next, prev,
+    createList, deleteList, switchList, toJSON, fromJSON
   }
 })

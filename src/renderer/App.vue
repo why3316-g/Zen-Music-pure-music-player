@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { usePlaylistStore } from './stores/playlist'
 import { usePlayerStore } from './stores/player'
 import { useThemeStore } from './stores/theme'
@@ -10,6 +10,8 @@ import Playlist from './components/Playlist.vue'
 import Visualizer from './components/Visualizer.vue'
 import VinylDisc from './components/VinylDisc.vue'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
+import SleepTimer from './components/SleepTimer.vue'
+import VideoPlayer from './components/VideoPlayer.vue'
 import './themes/apple/styles.css'
 import './themes/vinyl/styles.css'
 
@@ -18,6 +20,8 @@ const player = usePlayerStore()
 const theme = useThemeStore()
 const isMaximized = ref(false)
 const isDraggingOver = ref(false)
+const sidebarVisible = ref(true)
+let sidebarTimer: ReturnType<typeof setTimeout> | null = null
 
 async function handleMinimize() {
   await window.api.minimize()
@@ -46,13 +50,53 @@ async function addAndPlay(filePaths: string[]) {
   if (shouldPlay) {
     const track = playlist.tracks[0]
     player.setTrack(track)
-    await audioEngine.load(track.filePath)
     audioEngine.connectAnalyser()
+    await audioEngine.load(track.filePath)
+  }
+  resetSidebarTimer()
+}
+
+function resetSidebarTimer() {
+  sidebarVisible.value = true
+  if (sidebarTimer) clearTimeout(sidebarTimer)
+  sidebarTimer = setTimeout(() => {
+    sidebarVisible.value = false
+  }, 5000)
+}
+
+function togglePlaylist() {
+  if (sidebarVisible.value) {
+    sidebarVisible.value = false
+  } else {
+    resetSidebarTimer()
   }
 }
 
 onMounted(() => {
   theme.init()
+
+  // Restore playlist from localStorage
+  const saved = localStorage.getItem('sonicvibe-playlist')
+  if (saved) {
+    try { playlist.fromJSON(JSON.parse(saved)) } catch {}
+  }
+
+  // Restore current track (without auto-playing) so UI isn't blank
+  if (playlist.tracks.length > 0 && playlist.currentIndex >= 0) {
+    const track = playlist.tracks[playlist.currentIndex]
+    if (track) player.setTrack(track, false)
+    resetSidebarTimer()
+  }
+
+  const savedTheme = localStorage.getItem('sonicvibe-theme')
+  if (savedTheme) theme.setTheme(savedTheme)
+
+  // Timer: pause playback when timer expires
+  window.addEventListener('timer:expired', () => {
+    audioEngine.pause()
+    player.isPlaying = false
+  })
+
   document.addEventListener('dragover', (e) => {
     e.preventDefault()
     isDraggingOver.value = true
@@ -67,11 +111,23 @@ onMounted(() => {
     if (!files || files.length === 0) return
     const paths: string[] = []
     for (let i = 0; i < files.length; i++) {
-      const f = files[i] as File & { path?: string }
-      if (f.path) paths.push(f.path)
+      try {
+        const path = window.api.getPathForFile(files[i])
+        if (path) paths.push(path)
+      } catch {}
     }
     if (paths.length > 0) await addAndPlay(paths)
   })
+})
+
+// Persist playlist
+watch(() => [playlist.tracks, playlist.currentIndex, playlist.activeListId], () => {
+  localStorage.setItem('sonicvibe-playlist', JSON.stringify(playlist.toJSON()))
+}, { deep: true })
+
+// Persist theme
+watch(() => theme.currentTheme, (t) => {
+  localStorage.setItem('sonicvibe-theme', t)
 })
 </script>
 
@@ -83,6 +139,7 @@ onMounted(() => {
         <span class="title-bar__title">SonicVibe</span>
       </div>
       <ThemeSwitcher />
+      <SleepTimer />
       <div class="title-bar__controls">
         <button class="title-bar__btn" @click="handleMinimize">
           <svg width="12" height="12" viewBox="0 0 12 12">
@@ -104,9 +161,17 @@ onMounted(() => {
 
     <!-- Main content -->
     <div class="main-content">
-      <!-- Sidebar: playlist -->
-      <aside class="sidebar" v-if="playlist.tracks.length > 0">
-        <Playlist />
+      <!-- Sidebar: playlist with auto-hide -->
+      <aside
+        class="sidebar"
+        v-if="playlist.tracks.length > 0"
+        :class="{ 'sidebar--hidden': !sidebarVisible }"
+        @click="resetSidebarTimer"
+        @mouseenter="resetSidebarTimer"
+      >
+        <div class="sidebar__inner">
+          <Playlist />
+        </div>
       </aside>
 
       <!-- Center -->
@@ -129,12 +194,12 @@ onMounted(() => {
             <div class="now-playing__title">{{ player.currentTrack.title }}</div>
             <div class="now-playing__artist">{{ player.currentTrack.artist }}</div>
           </div>
-          <!-- Track info below vinyl disc -->
           <div class="vinyl-info" v-if="theme.currentTheme === 'vinyl' && player.currentTrack">
             <div class="vinyl-info__title">{{ player.currentTrack.title }}</div>
             <div class="vinyl-info__artist">{{ player.currentTrack.artist }}</div>
           </div>
           <Visualizer />
+          <VideoPlayer />
         </div>
       </div>
     </div>
@@ -147,7 +212,7 @@ onMounted(() => {
     </div>
 
     <!-- Bottom player bar -->
-    <Player />
+    <Player @toggle-playlist="togglePlaylist" />
   </div>
 </template>
 
@@ -246,11 +311,27 @@ html, body, #app {
   min-height: 0;
 }
 
+/* Sidebar with auto-hide */
 .sidebar {
   width: var(--sidebar-width, 280px);
   flex-shrink: 0;
+  overflow: hidden;
   border-right: 1px solid var(--border, rgba(255, 255, 255, 0.06));
   background: var(--bg-secondary, rgba(0, 0, 0, 0.15));
+  transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+.sidebar--hidden {
+  width: 0;
+  border-right-width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar__inner {
+  width: var(--sidebar-width, 280px);
+  min-width: var(--sidebar-width, 280px);
+  height: 100%;
 }
 
 .center {

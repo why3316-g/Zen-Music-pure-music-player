@@ -9,6 +9,10 @@ import type { PlayMode } from '../utils/types'
 const player = usePlayerStore()
 const playlist = usePlaylistStore()
 
+const emit = defineEmits<{
+  (e: 'toggle-playlist'): void
+}>()
+
 const progressRef = ref<HTMLDivElement>()
 const isDragging = ref(false)
 const dragTime = ref(0)
@@ -38,7 +42,12 @@ async function togglePlay() {
     audioEngine.pause()
     player.isPlaying = false
   } else {
-    await audioEngine.play()
+    // If no source loaded (e.g., restored from localStorage), load first
+    if (!audioEngine.currentSrc) {
+      await audioEngine.load(player.currentTrack.filePath)
+    } else {
+      await audioEngine.play()
+    }
     player.isPlaying = true
     audioEngine.connectAnalyser()
   }
@@ -176,6 +185,15 @@ onUnmounted(() => {
         :value="player.volume"
         @input="handleVolumeChange"
       />
+      <button class="ctrl-btn ctrl-btn--small playlist-toggle" @click="emit('toggle-playlist')" title="播放列表">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+          <rect x="1" y="2" width="12" height="1.5" rx="0.75" />
+          <rect x="1" y="6" width="12" height="1.5" rx="0.75" />
+          <rect x="1" y="10" width="8" height="1.5" rx="0.75" />
+          <circle cx="14" cy="11" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3" />
+          <line x1="16.5" y1="13.5" x2="18" y2="15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+        </svg>
+      </button>
     </div>
   </div>
 </template>
@@ -355,7 +373,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 180px;
+  width: 200px;
   flex-shrink: 0;
   justify-content: flex-end;
 }

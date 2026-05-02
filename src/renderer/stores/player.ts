@@ -14,11 +14,11 @@ export const usePlayerStore = defineStore('player', () => {
     duration.value > 0 ? currentTime.value / duration.value : 0
   )
 
-  function setTrack(track: TrackInfo) {
+  function setTrack(track: TrackInfo, autoPlay = true) {
     currentTrack.value = track
-    duration.value = track.duration
+    duration.value = track.duration || 0
     currentTime.value = 0
-    isPlaying.value = true
+    isPlaying.value = autoPlay
   }
 
   function togglePlay() {

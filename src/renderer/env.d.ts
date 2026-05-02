@@ -16,5 +16,6 @@ interface Window {
     readBuffer: (filePath: string) => Promise<ArrayBuffer | null>
     onDropFiles: (callback: (paths: string[]) => void) => void
     toAppUrl: (filePath: string) => string
+    getPathForFile: (file: File) => string
   }
 }

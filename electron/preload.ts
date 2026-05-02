@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 contextBridge.exposeInMainWorld('api', {
   // File dialog
@@ -19,5 +19,8 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   // Convert file path to app:// URL
-  toAppUrl: (filePath: string) => `app://local/${encodeURIComponent(filePath)}`
+  toAppUrl: (filePath: string) => `app://local/${encodeURIComponent(filePath)}`,
+
+  // Get file path from dropped File object (Electron 33+)
+  getPathForFile: (file: File) => webUtils.getPathForFile(file)
 })

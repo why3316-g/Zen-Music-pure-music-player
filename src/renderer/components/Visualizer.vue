@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { usePlayerStore } from '../stores/player'
 import { audioEngine } from '../services/audio-engine'
 
@@ -8,10 +8,24 @@ const canvasRef = ref<HTMLCanvasElement>()
 let animId = 0
 let dataArray: Uint8Array | null = null
 
+const isVideo = computed(() => {
+  const ext = player.currentTrack?.filePath.split('.').pop()?.toLowerCase()
+  return ['mp4', 'mkv', 'avi', 'webm'].includes(ext || '')
+})
+
 function draw() {
   const canvas = canvasRef.value
   const analyser = audioEngine.getAnalyser()
-  if (!canvas || !analyser) return
+
+  if (!canvas) {
+    animId = requestAnimationFrame(draw)
+    return
+  }
+
+  if (!analyser) {
+    animId = requestAnimationFrame(draw)
+    return
+  }
 
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -79,12 +93,24 @@ function resizeCanvas() {
   canvas.height = rect.height
 }
 
-watch(() => player.isPlaying, (playing) => {
+async function restartDraw() {
+  await nextTick()
+  resizeCanvas()
+  stopDraw()
+  startDraw()
+}
+
+watch(() => player.isPlaying, async (playing) => {
   if (playing) {
-    resizeCanvas()
-    startDraw()
+    await restartDraw()
   } else {
     stopDraw()
+  }
+}, { immediate: true })
+
+watch(() => player.currentTrack?.filePath, async () => {
+  if (player.isPlaying) {
+    await restartDraw()
   }
 })
 
@@ -100,7 +126,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="visualizer" v-if="player.currentTrack">
+  <div class="visualizer" v-if="player.currentTrack && !isVideo">
     <canvas ref="canvasRef" class="visualizer__canvas" />
   </div>
 </template>

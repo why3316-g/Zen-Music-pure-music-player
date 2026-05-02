@@ -1,6 +1,20 @@
 import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
-import { readFile } from 'fs/promises'
+import { readFile, stat } from 'fs/promises'
+import { createReadStream } from 'fs'
 import { join } from 'path'
+import { Readable } from 'stream'
+
+const MIME_TYPES: Record<string, string> = {
+  '.mp3': 'audio/mpeg', '.flac': 'audio/flac', '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg', '.aac': 'audio/aac', '.m4a': 'audio/mp4',
+  '.wma': 'audio/x-ms-wma', '.mp4': 'video/mp4', '.mkv': 'video/x-matroska',
+  '.avi': 'video/x-msvideo', '.webm': 'video/webm'
+}
+
+function getMimeType(filePath: string): string {
+  const ext = '.' + filePath.split('.').pop()?.toLowerCase()
+  return MIME_TYPES[ext] || 'application/octet-stream'
+}
 
 let mainWindow: BrowserWindow | null = null
 
@@ -42,10 +56,53 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 app.whenReady().then(() => {
-  protocol.handle('app', (request) => {
+  protocol.handle('app', async (request) => {
     const url = new URL(request.url)
     const filePath = decodeURIComponent(url.pathname).replace(/^\/local/, '').replace(/^\//, '')
-    return net.fetch(`file:///${filePath}`)
+
+    try {
+      const fileStat = await stat(filePath)
+      const fileSize = fileStat.size
+
+      // Handle Range requests for media seeking
+      const rangeHeader = request.headers.get('range')
+      if (rangeHeader) {
+        const matches = /bytes=(\d+)-(\d*)/.exec(rangeHeader)
+        if (matches) {
+          const start = parseInt(matches[1], 10)
+          const end = matches[2] ? parseInt(matches[2], 10) : fileSize - 1
+          const chunkSize = end - start + 1
+
+          const stream = createReadStream(filePath, { start, end })
+          const body = Readable.toWeb(stream) as ReadableStream
+
+          return new Response(body, {
+            status: 206,
+            headers: {
+              'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+              'Accept-Ranges': 'bytes',
+              'Content-Length': String(chunkSize),
+              'Content-Type': getMimeType(filePath)
+            }
+          })
+        }
+      }
+
+      // Full file request
+      const stream = createReadStream(filePath)
+      const body = Readable.toWeb(stream) as ReadableStream
+
+      return new Response(body, {
+        status: 200,
+        headers: {
+          'Accept-Ranges': 'bytes',
+          'Content-Length': String(fileSize),
+          'Content-Type': getMimeType(filePath)
+        }
+      })
+    } catch {
+      return new Response('File not found', { status: 404 })
+    }
   })
 
   createWindow()
