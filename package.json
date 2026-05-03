@@ -1,7 +1,7 @@
 {
-  "name": "sonicvibe",
+  "name": "zen-music",
   "version": "0.1.0",
-  "author": "SonicVibe",
+  "author": "Zen·Music",
   "type": "commonjs",
   "main": "./out/main/main.js",
   "scripts": {

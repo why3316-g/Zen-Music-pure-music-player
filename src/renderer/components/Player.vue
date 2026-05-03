@@ -5,6 +5,7 @@ import { usePlaylistStore } from '../stores/playlist'
 import { audioEngine } from '../services/audio-engine'
 import { formatTime } from '../utils/format'
 import type { PlayMode } from '../utils/types'
+import SleepTimer from './SleepTimer.vue'
 
 const player = usePlayerStore()
 const playlist = usePlaylistStore()
@@ -125,6 +126,13 @@ onMounted(() => {
 
   window.addEventListener('mouseup', onProgressUp)
   window.addEventListener('mousemove', onProgressMove)
+
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.code === 'Space' && e.target === document.body) {
+      e.preventDefault()
+      togglePlay()
+    }
+  })
 })
 
 onUnmounted(() => {
@@ -172,28 +180,33 @@ onUnmounted(() => {
 
     <!-- Volume & mode -->
     <div class="player__extra">
-      <button class="ctrl-btn ctrl-btn--small" @click="cyclePlayMode" :title="playModeLabels[player.playMode]">
-        {{ playModeIcons[player.playMode] }}
-      </button>
-      <span class="vol-icon">🔊</span>
-      <input
-        type="range"
-        class="vol-slider"
-        min="0"
-        max="1"
-        step="0.01"
-        :value="player.volume"
-        @input="handleVolumeChange"
-      />
-      <button class="ctrl-btn ctrl-btn--small playlist-toggle" @click="emit('toggle-playlist')" title="播放列表">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-          <rect x="1" y="2" width="12" height="1.5" rx="0.75" />
-          <rect x="1" y="6" width="12" height="1.5" rx="0.75" />
-          <rect x="1" y="10" width="8" height="1.5" rx="0.75" />
-          <circle cx="14" cy="11" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3" />
-          <line x1="16.5" y1="13.5" x2="18" y2="15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-        </svg>
-      </button>
+      <div class="player__extra-top">
+        <button class="ctrl-btn ctrl-btn--small" @click="cyclePlayMode" :title="playModeLabels[player.playMode]">
+          {{ playModeIcons[player.playMode] }}
+        </button>
+        <SleepTimer />
+        <button class="ctrl-btn ctrl-btn--small playlist-toggle" @click="emit('toggle-playlist')" title="播放列表">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+            <rect x="1" y="2" width="12" height="1.5" rx="0.75" />
+            <rect x="1" y="6" width="12" height="1.5" rx="0.75" />
+            <rect x="1" y="10" width="8" height="1.5" rx="0.75" />
+            <circle cx="14" cy="11" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3" />
+            <line x1="16.5" y1="13.5" x2="18" y2="15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+      <div class="player__extra-bottom">
+        <span class="vol-icon">🔊</span>
+        <input
+          type="range"
+          class="vol-slider"
+          min="0"
+          max="1"
+          step="0.01"
+          :value="player.volume"
+          @input="handleVolumeChange"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -371,10 +384,24 @@ onUnmounted(() => {
 
 .player__extra {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
   width: 200px;
   flex-shrink: 0;
+}
+
+.player__extra-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.player__extra-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-end;
 }
 

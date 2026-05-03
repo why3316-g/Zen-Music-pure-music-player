@@ -3,6 +3,7 @@ import { ref, onMounted, watch } from 'vue'
 import { usePlaylistStore } from './stores/playlist'
 import { usePlayerStore } from './stores/player'
 import { useThemeStore } from './stores/theme'
+import { useVisualizerStore } from './stores/visualizer'
 import { scanFiles } from './services/file-scanner'
 import { audioEngine } from './services/audio-engine'
 import Player from './components/Player.vue'
@@ -10,7 +11,7 @@ import Playlist from './components/Playlist.vue'
 import Visualizer from './components/Visualizer.vue'
 import VinylDisc from './components/VinylDisc.vue'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
-import SleepTimer from './components/SleepTimer.vue'
+import VisualizerSwitcher from './components/VisualizerSwitcher.vue'
 import VideoPlayer from './components/VideoPlayer.vue'
 import './themes/apple/styles.css'
 import './themes/vinyl/styles.css'
@@ -18,10 +19,13 @@ import './themes/vinyl/styles.css'
 const playlist = usePlaylistStore()
 const player = usePlayerStore()
 const theme = useThemeStore()
+const viz = useVisualizerStore()
 const isMaximized = ref(false)
 const isDraggingOver = ref(false)
 const sidebarVisible = ref(true)
+const zenMode = ref(false)
 let sidebarTimer: ReturnType<typeof setTimeout> | null = null
+let zenTimer: ReturnType<typeof setTimeout> | null = null
 
 async function handleMinimize() {
   await window.api.minimize()
@@ -72,11 +76,22 @@ function togglePlaylist() {
   }
 }
 
+function wakeZen() {
+  zenMode.value = false
+  if (zenTimer) clearTimeout(zenTimer)
+  zenTimer = setTimeout(() => {
+    if (player.isPlaying && playlist.tracks.length > 0) {
+      zenMode.value = true
+    }
+  }, 5000)
+}
+
 onMounted(() => {
   theme.init()
+  viz.init()
 
   // Restore playlist from localStorage
-  const saved = localStorage.getItem('sonicvibe-playlist')
+  const saved = localStorage.getItem('zen-music-playlist')
   if (saved) {
     try { playlist.fromJSON(JSON.parse(saved)) } catch {}
   }
@@ -88,7 +103,7 @@ onMounted(() => {
     resetSidebarTimer()
   }
 
-  const savedTheme = localStorage.getItem('sonicvibe-theme')
+  const savedTheme = localStorage.getItem('zen-music-theme')
   if (savedTheme) theme.setTheme(savedTheme)
 
   // Timer: pause playback when timer expires
@@ -118,28 +133,54 @@ onMounted(() => {
     }
     if (paths.length > 0) await addAndPlay(paths)
   })
+
+  // Handle files opened via file association (double-click in Explorer)
+  window.api.onOpenFiles(async (paths: string[]) => {
+    if (paths.length > 0) await addAndPlay(paths)
+  })
+
+  // Zen mode: auto-hide UI after 5s idle
+  document.addEventListener('mousemove', wakeZen)
+  document.addEventListener('mousedown', wakeZen)
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.code === 'Space') {
+      zenMode.value = false
+      wakeZen()
+    } else {
+      wakeZen()
+    }
+  })
+  wakeZen()
 })
 
 // Persist playlist
 watch(() => [playlist.tracks, playlist.currentIndex, playlist.activeListId], () => {
-  localStorage.setItem('sonicvibe-playlist', JSON.stringify(playlist.toJSON()))
+  localStorage.setItem('zen-music-playlist', JSON.stringify(playlist.toJSON()))
 }, { deep: true })
 
 // Persist theme
 watch(() => theme.currentTheme, (t) => {
-  localStorage.setItem('sonicvibe-theme', t)
+  localStorage.setItem('zen-music-theme', t)
+})
+
+// Exit zen mode when paused
+watch(() => player.isPlaying, (playing) => {
+  if (!playing) {
+    zenMode.value = false
+    wakeZen()
+  }
 })
 </script>
 
 <template>
-  <div class="app">
+  <div class="app" :class="{ 'app--zen': zenMode }" @mousemove="wakeZen">
     <!-- Title bar -->
-    <div class="title-bar">
+    <div class="title-bar" :class="{ 'zen-fade': zenMode }">
       <div class="title-bar__drag">
-        <span class="title-bar__title">SonicVibe</span>
+        <span class="title-bar__title">Zen·Music</span>
       </div>
       <ThemeSwitcher />
-      <SleepTimer />
+      <VisualizerSwitcher />
       <div class="title-bar__controls">
         <button class="title-bar__btn" @click="handleMinimize">
           <svg width="12" height="12" viewBox="0 0 12 12">
@@ -178,13 +219,13 @@ watch(() => theme.currentTheme, (t) => {
       <div class="center">
         <div v-if="playlist.tracks.length === 0" class="empty-state">
           <div class="empty-state__icon">♪</div>
-          <h1>SonicVibe</h1>
+          <h1>Zen·Music</h1>
           <p>拖拽音乐文件到窗口，或点击下方按钮添加</p>
           <button class="add-btn" @click="openFiles">添加音乐</button>
         </div>
         <div v-else class="center__content">
           <VinylDisc />
-          <div class="now-playing" v-if="player.currentTrack && theme.currentTheme !== 'vinyl'">
+          <div class="now-playing" :class="{ 'zen-fade': zenMode }" v-if="player.currentTrack && theme.currentTheme !== 'vinyl'">
             <div class="now-playing__cover" v-if="player.currentTrack.coverUrl">
               <img :src="player.currentTrack.coverUrl" alt="cover" />
             </div>
@@ -194,7 +235,7 @@ watch(() => theme.currentTheme, (t) => {
             <div class="now-playing__title">{{ player.currentTrack.title }}</div>
             <div class="now-playing__artist">{{ player.currentTrack.artist }}</div>
           </div>
-          <div class="vinyl-info" v-if="theme.currentTheme === 'vinyl' && player.currentTrack">
+          <div class="vinyl-info" :class="{ 'zen-fade': zenMode }" v-if="theme.currentTheme === 'vinyl' && player.currentTrack">
             <div class="vinyl-info__title">{{ player.currentTrack.title }}</div>
             <div class="vinyl-info__artist">{{ player.currentTrack.artist }}</div>
           </div>
@@ -212,7 +253,9 @@ watch(() => theme.currentTheme, (t) => {
     </div>
 
     <!-- Bottom player bar -->
-    <Player @toggle-playlist="togglePlaylist" />
+    <div :class="{ 'zen-fade': zenMode }">
+      <Player @toggle-playlist="togglePlaylist" />
+    </div>
   </div>
 </template>
 
@@ -265,6 +308,7 @@ html, body, #app {
   -webkit-app-region: drag;
   background: var(--titlebar-bg, rgba(0, 0, 0, 0.3));
   flex-shrink: 0;
+  transition: opacity 0.8s ease;
 }
 
 .title-bar__drag {
@@ -400,6 +444,7 @@ html, body, #app {
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  transition: opacity 0.8s ease;
 }
 
 .now-playing__cover {
@@ -440,6 +485,7 @@ html, body, #app {
   align-items: center;
   gap: 4px;
   margin-top: 16px;
+  transition: opacity 0.8s ease;
 }
 
 .vinyl-info__title {
@@ -452,6 +498,21 @@ html, body, #app {
   font-size: 14px;
   opacity: 0.5;
   color: var(--text-secondary, #c4a882);
+}
+
+/* Zen mode: smooth fade for title bar, player bar, track info */
+.zen-fade {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.8s ease;
+}
+
+.app--zen {
+  cursor: none;
+}
+
+.app--zen .zen-fade {
+  cursor: none;
 }
 
 .drag-overlay {

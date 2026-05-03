@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useThemeStore } from '../stores/theme'
+import { useVisualizerStore } from '../stores/visualizer'
+import type { VisualizerType } from '../stores/visualizer'
 
-const theme = useThemeStore()
+const viz = useVisualizerStore()
 const open = ref(false)
 
-const themes = [
-  { id: 'vinyl', name: '黑胶' },
-  { id: 'apple', name: 'Apple' },
+const types: { id: VisualizerType; name: string }[] = [
+  { id: 'bars', name: '经典' },
+  { id: 'arc', name: '弧形' },
+  { id: 'wave', name: '波形' },
 ]
 
-const currentName = () => themes.find(t => t.id === theme.currentTheme)?.name ?? '黑胶'
+const currentName = () => types.find(t => t.id === viz.type)?.name ?? '波形'
 
-function select(id: string) {
-  theme.setTheme(id)
+function select(id: VisualizerType) {
+  viz.setType(id)
   open.value = false
 }
 
@@ -27,19 +29,19 @@ function close() {
 </script>
 
 <template>
-  <div class="theme-switcher" v-click-outside="close">
-    <button class="theme-trigger" @click="toggle" :title="'主题: ' + currentName()">
-      <span class="theme-trigger__label">{{ currentName() }}</span>
-      <svg class="theme-trigger__arrow" :class="{ 'theme-trigger__arrow--open': open }" width="10" height="6" viewBox="0 0 10 6">
+  <div class="viz-switcher" v-click-outside="close">
+    <button class="viz-trigger" @click="toggle" :title="'频谱: ' + currentName()">
+      <span class="viz-trigger__label">{{ currentName() }}</span>
+      <svg class="viz-trigger__arrow" :class="{ 'viz-trigger__arrow--open': open }" width="10" height="6" viewBox="0 0 10 6">
         <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </button>
-    <div class="theme-dropdown" v-if="open">
+    <div class="viz-dropdown" v-if="open">
       <button
-        v-for="t in themes"
+        v-for="t in types"
         :key="t.id"
-        class="theme-option"
-        :class="{ 'theme-option--active': theme.currentTheme === t.id }"
+        class="viz-option"
+        :class="{ 'viz-option--active': viz.type === t.id }"
         @click="select(t.id)"
       >
         {{ t.name }}
@@ -49,12 +51,12 @@ function close() {
 </template>
 
 <style scoped>
-.theme-switcher {
+.viz-switcher {
   position: relative;
   -webkit-app-region: no-drag;
 }
 
-.theme-trigger {
+.viz-trigger {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -68,20 +70,20 @@ function close() {
   transition: background 0.15s, color 0.15s;
 }
 
-.theme-trigger:hover {
+.viz-trigger:hover {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text-primary, #fff);
 }
 
-.theme-trigger__arrow {
+.viz-trigger__arrow {
   transition: transform 0.2s;
 }
 
-.theme-trigger__arrow--open {
+.viz-trigger__arrow--open {
   transform: rotate(180deg);
 }
 
-.theme-dropdown {
+.viz-dropdown {
   position: absolute;
   top: 100%;
   right: 0;
@@ -95,7 +97,7 @@ function close() {
   z-index: 50;
 }
 
-.theme-option {
+.viz-option {
   display: block;
   width: 100%;
   padding: 6px 12px;
@@ -109,12 +111,12 @@ function close() {
   transition: background 0.15s, color 0.15s;
 }
 
-.theme-option:hover {
+.viz-option:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary, #fff);
 }
 
-.theme-option--active {
+.viz-option--active {
   color: var(--accent, #667eea);
 }
 </style>

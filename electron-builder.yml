@@ -1,5 +1,5 @@
-appId: com.sonicvibe.app
-productName: SonicVibe
+appId: com.zenmusic.app
+productName: Zen·Music
 directories:
   buildResources: build
 files:
@@ -8,6 +8,40 @@ files:
   - '!electron/*'
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+fileAssociations:
+  - ext: mp3
+    name: MP3 Audio
+    role: Viewer
+  - ext: flac
+    name: FLAC Audio
+    role: Viewer
+  - ext: wav
+    name: WAV Audio
+    role: Viewer
+  - ext: ogg
+    name: OGG Audio
+    role: Viewer
+  - ext: aac
+    name: AAC Audio
+    role: Viewer
+  - ext: m4a
+    name: M4A Audio
+    role: Viewer
+  - ext: wma
+    name: WMA Audio
+    role: Viewer
+  - ext: mp4
+    name: MP4 Video
+    role: Viewer
+  - ext: mkv
+    name: MKV Video
+    role: Viewer
+  - ext: avi
+    name: AVI Video
+    role: Viewer
+  - ext: webm
+    name: WebM Video
+    role: Viewer
 win:
   target:
     - nsis
@@ -17,4 +51,4 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 portable:
-  artifactName: SonicVibe-Portable-${version}.exe
+  artifactName: Zen-Music-Portable-${version}.exe

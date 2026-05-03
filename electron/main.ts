@@ -17,6 +17,24 @@ function getMimeType(filePath: string): string {
 }
 
 let mainWindow: BrowserWindow | null = null
+let pendingFiles: string[] = []
+
+function sendFilesToRenderer(files: string[]) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('open-files', files)
+  } else {
+    pendingFiles.push(...files)
+  }
+}
+
+// Handle file open from command line (e.g., double-click a file)
+const fileArg = process.argv.find(arg => {
+  const ext = '.' + arg.split('.').pop()?.toLowerCase()
+  return MIME_TYPES[ext]
+})
+if (fileArg) {
+  pendingFiles.push(fileArg)
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -24,7 +42,8 @@ function createWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    title: 'SonicVibe',
+    title: 'Zen·Music',
+    icon: join(__dirname, '../build/icon.ico'),
     frame: false,
     titleBarStyle: 'hidden',
     webPreferences: {
@@ -107,6 +126,14 @@ app.whenReady().then(() => {
 
   createWindow()
 
+  // Send any pending files that arrived before window was ready
+  if (pendingFiles.length > 0) {
+    mainWindow!.webContents.on('did-finish-load', () => {
+      sendFilesToRenderer(pendingFiles)
+      pendingFiles = []
+    })
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
@@ -115,6 +142,32 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
+
+// macOS: open file when app is already running
+app.on('open-file', (e, filePath) => {
+  e.preventDefault()
+  sendFilesToRenderer([filePath])
+})
+
+// Windows: second instance launched with a file argument
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', (_e, argv) => {
+    const file = argv.find(arg => {
+      const ext = '.' + arg.split('.').pop()?.toLowerCase()
+      return MIME_TYPES[ext]
+    })
+    if (file) {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore()
+        mainWindow.focus()
+      }
+      sendFilesToRenderer([file])
+    }
+  })
+}
 
 // IPC: open file dialog
 ipcMain.handle('dialog:openFiles', async () => {

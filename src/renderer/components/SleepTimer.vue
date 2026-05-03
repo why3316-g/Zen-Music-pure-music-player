@@ -113,15 +113,15 @@ function startCustomTimer() {
 
 .timer-panel {
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   right: 0;
-  margin-top: 4px;
+  margin-bottom: 4px;
   background: var(--bg-elevated, #2c2c2e);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
   border-radius: 10px;
   padding: 12px;
   min-width: 220px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
   z-index: 50;
 }
 

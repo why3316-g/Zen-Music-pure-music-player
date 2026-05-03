@@ -17,5 +17,6 @@ interface Window {
     onDropFiles: (callback: (paths: string[]) => void) => void
     toAppUrl: (filePath: string) => string
     getPathForFile: (file: File) => string
+    onOpenFiles: (callback: (paths: string[]) => void) => void
   }
 }

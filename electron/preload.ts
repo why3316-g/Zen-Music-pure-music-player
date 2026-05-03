@@ -22,5 +22,10 @@ contextBridge.exposeInMainWorld('api', {
   toAppUrl: (filePath: string) => `app://local/${encodeURIComponent(filePath)}`,
 
   // Get file path from dropped File object (Electron 33+)
-  getPathForFile: (file: File) => webUtils.getPathForFile(file)
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
+
+  // Receive files opened via file association
+  onOpenFiles: (callback: (paths: string[]) => void) => {
+    ipcRenderer.on('open-files', (_e, paths) => callback(paths))
+  }
 })
