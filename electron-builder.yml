@@ -2,6 +2,7 @@ appId: com.zenmusic.app
 productName: Zen·Music
 directories:
   buildResources: build
+afterPack: build/afterPack.js
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -50,5 +51,6 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
 portable:
   artifactName: Zen-Music-Portable-${version}.exe
