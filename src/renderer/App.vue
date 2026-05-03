@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { usePlaylistStore } from './stores/playlist'
 import { usePlayerStore } from './stores/player'
 import { useThemeStore } from './stores/theme'
@@ -12,6 +12,7 @@ import Visualizer from './components/Visualizer.vue'
 import VinylDisc from './components/VinylDisc.vue'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
 import VisualizerSwitcher from './components/VisualizerSwitcher.vue'
+import LotusDisc from './components/LotusDisc.vue'
 import VideoPlayer from './components/VideoPlayer.vue'
 import './themes/apple/styles.css'
 import './themes/vinyl/styles.css'
@@ -21,6 +22,7 @@ const playlist = usePlaylistStore()
 const player = usePlayerStore()
 const theme = useThemeStore()
 const viz = useVisualizerStore()
+const isZenTheme = computed(() => theme.currentTheme === 'zen-ripple' || theme.currentTheme === 'zen-bloom')
 const isMaximized = ref(false)
 const isDraggingOver = ref(false)
 const sidebarVisible = ref(true)
@@ -105,7 +107,11 @@ onMounted(() => {
   }
 
   const savedTheme = localStorage.getItem('zen-music-theme')
-  if (savedTheme) theme.setTheme(savedTheme)
+  if (savedTheme) {
+    // Migrate old 'zen' theme to 'zen-ripple'
+    const resolved = savedTheme === 'zen' ? 'zen-ripple' : savedTheme
+    theme.setTheme(resolved)
+  }
 
   // Timer: pause playback when timer expires
   window.addEventListener('timer:expired', () => {
@@ -226,7 +232,8 @@ watch(() => player.isPlaying, (playing) => {
         </div>
         <div v-else class="center__content">
           <VinylDisc />
-          <div class="now-playing" :class="{ 'zen-fade': zenMode }" v-if="player.currentTrack && theme.currentTheme !== 'vinyl'">
+          <LotusDisc :zen-mode="zenMode" />
+          <div class="now-playing" :class="{ 'zen-fade': zenMode }" v-if="player.currentTrack && theme.currentTheme !== 'vinyl' && !isZenTheme">
             <div class="now-playing__cover" v-if="player.currentTrack.coverUrl">
               <img :src="player.currentTrack.coverUrl" alt="cover" />
             </div>

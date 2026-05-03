@@ -2,10 +2,12 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { usePlayerStore } from '../stores/player'
 import { useVisualizerStore } from '../stores/visualizer'
+import { useThemeStore } from '../stores/theme'
 import { audioEngine } from '../services/audio-engine'
 
 const player = usePlayerStore()
 const viz = useVisualizerStore()
+const theme = useThemeStore()
 const canvasRef = ref<HTMLCanvasElement>()
 let animId = 0
 let dataArray: Uint8Array | null = null
@@ -15,11 +17,18 @@ const isVideo = computed(() => {
   return ['mp4', 'mkv', 'avi', 'webm'].includes(ext || '')
 })
 
+const isZen = computed(() => theme.currentTheme === 'zen-ripple' || theme.currentTheme === 'zen-bloom')
+
 /* ── Renderer: Classic Bars ── */
 function drawBars(ctx: CanvasRenderingContext2D, w: number, h: number, data: Uint8Array) {
   const barCount = Math.min(data.length, 48)
   const gap = 3
   const barWidth = (w - gap * (barCount - 1)) / barCount
+
+  // Theme colors
+  const topColor = isZen.value ? 'rgba(138, 155, 131, 0.95)' : 'rgba(102, 126, 234, 0.95)'
+  const midColor = isZen.value ? 'rgba(110, 135, 108, 0.6)' : 'rgba(118, 75, 162, 0.6)'
+  const endColor = isZen.value ? 'rgba(110, 135, 108, 0.1)' : 'rgba(118, 75, 162, 0.1)'
 
   for (let i = 0; i < barCount; i++) {
     const value = data[i] / 255
@@ -28,9 +37,9 @@ function drawBars(ctx: CanvasRenderingContext2D, w: number, h: number, data: Uin
     const y = h - barHeight
 
     const gradient = ctx.createLinearGradient(x, y, x, h)
-    gradient.addColorStop(0, 'rgba(102, 126, 234, 0.95)')
-    gradient.addColorStop(0.5, 'rgba(118, 75, 162, 0.6)')
-    gradient.addColorStop(1, 'rgba(118, 75, 162, 0.1)')
+    gradient.addColorStop(0, topColor)
+    gradient.addColorStop(0.5, midColor)
+    gradient.addColorStop(1, endColor)
 
     ctx.fillStyle = gradient
     ctx.beginPath()
@@ -58,13 +67,21 @@ function drawArc(ctx: CanvasRenderingContext2D, w: number, h: number, data: Uint
   ctx.save()
   ctx.lineCap = 'round'
 
+  // Theme-aware arc colors
+  const glowColor = isZen.value ? 'rgba(138, 155, 131, 0.08)' : 'rgba(210, 190, 150, 0.08)'
+  const glowRing = isZen.value ? 'rgba(138, 155, 131, 0.015)' : 'rgba(200, 180, 140, 0.015)'
+  const shadowBase = isZen.value ? [138, 155, 131] : [218, 195, 145]
+  const gradStart = isZen.value ? [138, 160, 131] : [215, 195, 155]
+  const gradMid = isZen.value ? [120, 145, 115] : [200, 175, 130]
+  const gradEnd = isZen.value ? [105, 130, 100] : [180, 155, 110]
+
   // Outer soft glow ring
   ctx.shadowBlur = 25
-  ctx.shadowColor = 'rgba(210, 190, 150, 0.08)'
+  ctx.shadowColor = glowColor
   ctx.beginPath()
   ctx.arc(cx, cy, innerR + maxLen * 0.5, 0, Math.PI * 2)
   ctx.lineWidth = maxLen
-  ctx.strokeStyle = 'rgba(200, 180, 140, 0.015)'
+  ctx.strokeStyle = glowRing
   ctx.stroke()
   ctx.shadowBlur = 0
 
@@ -82,13 +99,12 @@ function drawArc(ctx: CanvasRenderingContext2D, w: number, h: number, data: Uint
     const alpha = 0.15 + value * 0.85
 
     ctx.shadowBlur = value * 10
-    ctx.shadowColor = `rgba(218, 195, 145, ${alpha * 0.35})`
+    ctx.shadowColor = `rgba(${shadowBase[0]}, ${shadowBase[1]}, ${shadowBase[2]}, ${alpha * 0.35})`
 
-    // Zen: warm parchment → soft amber → transparent
     const gradient = ctx.createLinearGradient(x1, y1, x2, y2)
-    gradient.addColorStop(0, `rgba(215, 195, 155, ${alpha * 0.7})`)
-    gradient.addColorStop(0.6, `rgba(200, 175, 130, ${alpha * 0.35})`)
-    gradient.addColorStop(1, `rgba(180, 155, 110, ${alpha * 0.05})`)
+    gradient.addColorStop(0, `rgba(${gradStart[0]}, ${gradStart[1]}, ${gradStart[2]}, ${alpha * 0.7})`)
+    gradient.addColorStop(0.6, `rgba(${gradMid[0]}, ${gradMid[1]}, ${gradMid[2]}, ${alpha * 0.35})`)
+    gradient.addColorStop(1, `rgba(${gradEnd[0]}, ${gradEnd[1]}, ${gradEnd[2]}, ${alpha * 0.05})`)
 
     ctx.beginPath()
     ctx.moveTo(x1, y1)
@@ -114,11 +130,17 @@ function drawArc(ctx: CanvasRenderingContext2D, w: number, h: number, data: Uint
 function drawWave(ctx: CanvasRenderingContext2D, w: number, h: number, data: Uint8Array) {
   const points = 48
 
-  const layers = [
-    { dataOffset: 0, yShift: 0, alpha: 0.65, r: 102, g: 126, b: 234 },
-    { dataOffset: 3, yShift: 6, alpha: 0.35, r: 130, g: 100, b: 220 },
-    { dataOffset: 6, yShift: 12, alpha: 0.18, r: 118, g: 75, b: 162 },
-  ]
+  const layers = isZen.value
+    ? [
+        { dataOffset: 0, yShift: 0, alpha: 0.65, r: 138, g: 155, b: 131 },
+        { dataOffset: 3, yShift: 6, alpha: 0.35, r: 120, g: 140, b: 115 },
+        { dataOffset: 6, yShift: 12, alpha: 0.18, r: 100, g: 125, b: 105 },
+      ]
+    : [
+        { dataOffset: 0, yShift: 0, alpha: 0.65, r: 102, g: 126, b: 234 },
+        { dataOffset: 3, yShift: 6, alpha: 0.35, r: 130, g: 100, b: 220 },
+        { dataOffset: 6, yShift: 12, alpha: 0.18, r: 118, g: 75, b: 162 },
+      ]
 
   for (const layer of layers) {
     const pts: { x: number; y: number }[] = []

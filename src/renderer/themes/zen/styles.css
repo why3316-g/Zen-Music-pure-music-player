@@ -1,31 +1,33 @@
-[data-theme="zen"] {
-  --bg-primary: #0d0f0e;
-  --bg-secondary: #151a17;
-  --bg-tertiary: #1c2320;
-  --bg-elevated: rgba(21, 26, 23, 0.92);
-  --bg-player: rgba(13, 15, 14, 0.96);
+/* Shared zen base — 禅·涟漪 & 禅·绽放 */
+[data-theme="zen-ripple"],
+[data-theme="zen-bloom"] {
+  --bg-primary: #fff9e1;
+  --bg-secondary: #f5f0d8;
+  --bg-tertiary: #efe9cf;
+  --bg-elevated: rgba(255, 249, 225, 0.95);
+  --bg-player: rgba(255, 249, 225, 0.92);
 
-  --text-primary: #c8c4b8;
-  --text-secondary: #8a8778;
-  --text-tertiary: #5a584e;
+  --text-primary: #3d3d2e;
+  --text-secondary: #8a8770;
+  --text-tertiary: #b0ad96;
 
-  --accent: #6b8f6e;
-  --accent-hover: #5a7d5d;
-  --accent-soft: rgba(107, 143, 110, 0.12);
+  --accent: #8A9B83;
+  --accent-hover: #7a8b73;
+  --accent-soft: rgba(138, 155, 131, 0.10);
 
-  --border: rgba(140, 160, 140, 0.06);
-  --border-active: rgba(140, 160, 140, 0.12);
+  --border: rgba(138, 155, 131, 0.10);
+  --border-active: rgba(138, 155, 131, 0.22);
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
 
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 10px;
   --radius-xl: 14px;
 
-  --titlebar-bg: rgba(13, 15, 14, 0.92);
+  --titlebar-bg: rgba(255, 249, 225, 0.92);
   --titlebar-height: 36px;
 
   --player-height: 72px;

@@ -18,11 +18,6 @@ const progressRef = ref<HTMLDivElement>()
 const isDragging = ref(false)
 const dragTime = ref(0)
 
-const playModeIcons: Record<PlayMode, string> = {
-  single: '🔂',
-  loop: '🔁',
-  shuffle: '🔀'
-}
 const playModeLabels: Record<PlayMode, string> = {
   single: '单曲循环',
   loop: '列表循环',
@@ -158,35 +153,35 @@ onUnmounted(() => {
     <div class="player__row">
       <!-- Left: playlist toggle -->
       <button class="player__playlist-btn" @click="emit('toggle-playlist')" title="播放列表">
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
-          <rect x="2" y="3" width="14" height="1.6" rx="0.8" />
-          <rect x="2" y="7.5" width="14" height="1.6" rx="0.8" />
-          <rect x="2" y="12" width="10" height="1.6" rx="0.8" />
-          <circle cx="16" cy="13.5" r="3" fill="none" stroke="currentColor" stroke-width="1.4" />
-          <line x1="19" y1="16.5" x2="21" y2="18.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+        <svg width="24" height="24" viewBox="0 0 22 22" fill="currentColor">
+          <rect x="2" y="3" width="14" height="1.8" rx="0.9" />
+          <rect x="2" y="7.5" width="14" height="1.8" rx="0.9" />
+          <rect x="2" y="12" width="10" height="1.8" rx="0.9" />
+          <circle cx="16" cy="13.5" r="3" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <line x1="19" y1="16.5" x2="21" y2="18.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
         </svg>
       </button>
 
       <!-- Center: transport controls -->
       <div class="player__transport">
         <button class="ctrl-btn" @click="playPrev" title="上一曲">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <rect x="2" y="3" width="2" height="10" />
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+            <rect x="2" y="3" width="2.5" height="10" />
             <path d="M14 3L6 8L14 13Z" />
           </svg>
         </button>
         <button class="ctrl-btn ctrl-btn--play" @click="togglePlay">
-          <svg v-if="player.isPlaying" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+          <svg v-if="player.isPlaying" width="22" height="22" viewBox="0 0 18 18" fill="currentColor">
             <rect x="3" y="2" width="4" height="14" rx="1" />
             <rect x="11" y="2" width="4" height="14" rx="1" />
           </svg>
-          <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+          <svg v-else width="22" height="22" viewBox="0 0 18 18" fill="currentColor">
             <path d="M4 2L15 9L4 16Z" />
           </svg>
         </button>
         <button class="ctrl-btn" @click="playNext" title="下一曲">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <rect x="12" y="3" width="2" height="10" />
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+            <rect x="12" y="3" width="2.5" height="10" />
             <path d="M2 3L10 8L2 13Z" />
           </svg>
         </button>
@@ -194,15 +189,36 @@ onUnmounted(() => {
 
       <!-- Right: play mode + timer + volume -->
       <div class="player__extra">
-        <button class="ctrl-btn ctrl-btn--small" @click="cyclePlayMode" :title="playModeLabels[player.playMode]">
-          {{ playModeIcons[player.playMode] }}
+        <button class="ctrl-btn ctrl-btn--small ctrl-btn--accent" @click="cyclePlayMode" :title="playModeLabels[player.playMode]">
+          <!-- Loop -->
+          <svg v-if="player.playMode === 'loop'" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 10c0-3 2.5-5.5 5.5-5.5h4" />
+            <polyline points="11 2 14 4.5 11 7" />
+            <path d="M17 10c0 3-2.5 5.5-5.5 5.5h-4" />
+            <polyline points="9 18 6 15.5 9 13" />
+          </svg>
+          <!-- Single repeat -->
+          <svg v-else-if="player.playMode === 'single'" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 10c0-3 2.5-5.5 5.5-5.5h4" />
+            <polyline points="11 2 14 4.5 11 7" />
+            <path d="M17 10c0 3-2.5 5.5-5.5 5.5h-4" />
+            <polyline points="9 18 6 15.5 9 13" />
+            <text x="10" y="12.5" text-anchor="middle" font-size="7" font-weight="700" fill="currentColor" stroke="none">1</text>
+          </svg>
+          <!-- Shuffle -->
+          <svg v-else width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 5h3l3 5-3 5H3" />
+            <path d="M17 5h-3l-3 5 3 5h3" />
+            <polyline points="15 2 17.5 5 15 8" />
+            <polyline points="15 12 17.5 15 15 18" />
+          </svg>
         </button>
         <SleepTimer />
         <div class="vol-group">
-          <svg class="vol-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M2 5.5h2.5L8 2v12L4.5 10.5H2V5.5z" />
-            <path v-if="player.volume > 0.5" d="M10.5 4.5c1.2 1 2 2.2 2 3.5s-.8 2.5-2 3.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
-            <path v-if="player.volume > 0" d="M12 2.5c1.8 1.5 3 3.3 3 5.5s-1.2 4-3 5.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+          <svg class="vol-icon" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+            <path d="M2 6h3L9 2v14L5 12H2V6z" />
+            <path v-if="player.volume > 0.5" d="M11.5 5c1.4 1.1 2.2 2.4 2.2 4s-.8 2.9-2.2 4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+            <path v-if="player.volume > 0" d="M13.5 3c2 1.7 3.3 3.6 3.3 6s-1.3 4.3-3.3 6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
           </svg>
           <input
             type="range"
@@ -211,6 +227,7 @@ onUnmounted(() => {
             max="1"
             step="0.01"
             :value="player.volume"
+            :style="{ '--vol-fill': (player.volume * 100) + '%' }"
             @input="handleVolumeChange"
           />
         </div>
@@ -231,14 +248,14 @@ onUnmounted(() => {
 .player__progress-wrap {
   display: flex;
   align-items: center;
-  height: 24px;
-  padding: 0 16px;
-  gap: 8px;
+  height: 28px;
+  padding: 0 20px;
+  gap: 10px;
 }
 
 .progress-bar {
   flex: 1;
-  height: 3px;
+  height: 4px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
   position: relative;
@@ -247,7 +264,7 @@ onUnmounted(() => {
 }
 
 .progress-bar:hover {
-  height: 5px;
+  height: 6px;
 }
 
 .progress-bar__fill {
@@ -261,22 +278,22 @@ onUnmounted(() => {
 .progress-bar:hover .progress-bar__fill::after {
   content: '';
   position: absolute;
-  right: -5px;
+  right: -6px;
   top: 50%;
   transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: white;
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
 }
 
 .time-label {
-  font-size: 11px;
+  font-size: 12px;
   opacity: 0.4;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
-  width: 36px;
+  width: 40px;
   user-select: none;
 }
 
@@ -290,16 +307,17 @@ onUnmounted(() => {
 
 /* Controls row */
 .player__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  padding: 4px 20px 12px;
-  gap: 0;
+  padding: 6px 24px 16px;
 }
 
 /* Playlist button: left side, larger */
 .player__playlist-btn {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
+  justify-self: start;
   border: none;
   background: none;
   color: var(--text-secondary, #999);
@@ -307,7 +325,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 10px;
   transition: background 0.15s, color 0.15s;
   flex-shrink: 0;
 }
@@ -317,13 +335,12 @@ onUnmounted(() => {
   color: var(--text-primary, #fff);
 }
 
-/* Transport controls: center */
+/* Transport controls: center — grid auto column */
 .player__transport {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .ctrl-btn {
@@ -331,8 +348,8 @@ onUnmounted(() => {
   background: none;
   color: var(--text-primary, #e0e0e0);
   cursor: pointer;
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -345,8 +362,8 @@ onUnmounted(() => {
 }
 
 .ctrl-btn--play {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   background: var(--accent, #667eea);
   color: white;
 }
@@ -357,24 +374,32 @@ onUnmounted(() => {
 }
 
 .ctrl-btn--small {
-  width: 32px;
-  height: 32px;
-  font-size: 14px;
+  width: 38px;
+  height: 38px;
+}
+
+/* Accent-colored icon buttons (play mode, timer) */
+.ctrl-btn--accent {
+  color: var(--accent, #667eea);
+}
+
+.ctrl-btn--accent:hover {
+  background: var(--accent-soft, rgba(102, 126, 234, 0.12));
 }
 
 /* Extra controls: right side */
 .player__extra {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
+  gap: 6px;
+  justify-self: end;
 }
 
 .vol-group {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-left: 4px;
+  gap: 8px;
+  margin-left: 6px;
 }
 
 .vol-icon {
@@ -383,22 +408,28 @@ onUnmounted(() => {
 }
 
 .vol-slider {
-  width: 70px;
-  height: 3px;
+  width: 80px;
+  height: 4px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 2px;
+  background: transparent;
   outline: none;
+}
+
+.vol-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent, #667eea) var(--vol-fill, 100%), rgba(255, 255, 255, 0.12) var(--vol-fill, 100%));
 }
 
 .vol-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: white;
+  background: var(--accent, #667eea);
   cursor: pointer;
+  margin-top: -5px;
   box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
 }
 </style>

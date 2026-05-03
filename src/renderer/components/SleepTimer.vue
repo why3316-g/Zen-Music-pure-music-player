@@ -31,7 +31,11 @@ function startCustomTimer() {
       @click="showPanel = !showPanel"
       title="定时暂停"
     >
-      ⏱
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <circle cx="9" cy="10" r="6.5" />
+        <path d="M9 7v3.5l2 2" />
+        <path d="M6 1h6" />
+      </svg>
       <span v-if="timer.isActive" class="timer-badge">{{ timer.displayTime }}</span>
     </button>
 
@@ -90,16 +94,15 @@ function startCustomTimer() {
   gap: 4px;
   border: none;
   background: transparent;
-  color: #ccc;
+  color: var(--accent, #667eea);
   cursor: pointer;
-  font-size: 16px;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 6px;
+  border-radius: 8px;
   transition: background 0.15s;
 }
 
 .timer-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--accent-soft, rgba(102, 126, 234, 0.12));
 }
 
 .timer-btn--active {
