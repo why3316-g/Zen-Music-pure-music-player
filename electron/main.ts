@@ -43,7 +43,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: 'Zen·Music',
-    icon: join(__dirname, '../build/icon.ico'),
+    icon: join(__dirname, '../../build/icon.ico'),
     frame: false,
     titleBarStyle: 'hidden',
     webPreferences: {

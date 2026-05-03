@@ -6,11 +6,12 @@ const theme = useThemeStore()
 const open = ref(false)
 
 const themes = [
+  { id: 'zen', name: '禅' },
   { id: 'vinyl', name: '黑胶' },
   { id: 'apple', name: 'Apple' },
 ]
 
-const currentName = () => themes.find(t => t.id === theme.currentTheme)?.name ?? '黑胶'
+const currentName = () => themes.find(t => t.id === theme.currentTheme)?.name ?? '禅'
 
 function select(id: string) {
   theme.setTheme(id)

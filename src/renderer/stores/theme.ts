@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useThemeStore = defineStore('theme', () => {
-  const currentTheme = ref('vinyl')
+  const currentTheme = ref('zen')
 
   function setTheme(theme: string) {
     currentTheme.value = theme

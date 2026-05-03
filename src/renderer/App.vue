@@ -15,6 +15,7 @@ import VisualizerSwitcher from './components/VisualizerSwitcher.vue'
 import VideoPlayer from './components/VideoPlayer.vue'
 import './themes/apple/styles.css'
 import './themes/vinyl/styles.css'
+import './themes/zen/styles.css'
 
 const playlist = usePlaylistStore()
 const player = usePlayerStore()

@@ -43,7 +43,6 @@ async function togglePlay() {
     audioEngine.pause()
     player.isPlaying = false
   } else {
-    // If no source loaded (e.g., restored from localStorage), load first
     if (!audioEngine.currentSrc) {
       await audioEngine.load(player.currentTrack.filePath)
     } else {
@@ -76,7 +75,6 @@ function onProgressUp() {
   const targetTime = dragTime.value
   audioEngine.seek(targetTime)
   player.seek(targetTime)
-  // Keep isDragging true briefly to prevent timeupdate from overwriting
   setTimeout(() => { isDragging.value = false }, 200)
 }
 
@@ -143,69 +141,79 @@ onUnmounted(() => {
 
 <template>
   <div class="player" v-if="player.currentTrack">
-    <!-- Track info -->
-    <div class="player__track">
-      <div class="player__cover" v-if="player.currentTrack.coverUrl">
-        <img :src="player.currentTrack.coverUrl" alt="cover" />
+    <!-- Progress bar: sits at top as a divider line -->
+    <div class="player__progress-wrap">
+      <span class="time-label time-label--left">{{ formatTime(displayTime) }}</span>
+      <div
+        class="progress-bar"
+        ref="progressRef"
+        @mousedown="onProgressDown"
+      >
+        <div class="progress-bar__fill" :style="{ width: (displayProgress * 100) + '%' }" />
       </div>
-      <div class="player__cover player__cover--empty" v-else>♪</div>
-      <div class="player__meta">
-        <div class="player__title">{{ player.currentTrack.title }}</div>
-        <div class="player__artist">{{ player.currentTrack.artist }}</div>
-      </div>
+      <span class="time-label time-label--right">{{ formatTime(player.duration) }}</span>
     </div>
 
-    <!-- Controls + Progress stacked -->
-    <div class="player__center">
-      <div class="player__controls">
-        <button class="ctrl-btn" @click="playPrev" title="上一曲">⏮</button>
-        <button class="ctrl-btn ctrl-btn--play" @click="togglePlay">
-          {{ player.isPlaying ? '⏸' : '▶' }}
+    <!-- Controls row -->
+    <div class="player__row">
+      <!-- Left: playlist toggle -->
+      <button class="player__playlist-btn" @click="emit('toggle-playlist')" title="播放列表">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
+          <rect x="2" y="3" width="14" height="1.6" rx="0.8" />
+          <rect x="2" y="7.5" width="14" height="1.6" rx="0.8" />
+          <rect x="2" y="12" width="10" height="1.6" rx="0.8" />
+          <circle cx="16" cy="13.5" r="3" fill="none" stroke="currentColor" stroke-width="1.4" />
+          <line x1="19" y1="16.5" x2="21" y2="18.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+        </svg>
+      </button>
+
+      <!-- Center: transport controls -->
+      <div class="player__transport">
+        <button class="ctrl-btn" @click="playPrev" title="上一曲">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <rect x="2" y="3" width="2" height="10" />
+            <path d="M14 3L6 8L14 13Z" />
+          </svg>
         </button>
-        <button class="ctrl-btn" @click="playNext" title="下一曲">⏭</button>
+        <button class="ctrl-btn ctrl-btn--play" @click="togglePlay">
+          <svg v-if="player.isPlaying" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+            <rect x="3" y="2" width="4" height="14" rx="1" />
+            <rect x="11" y="2" width="4" height="14" rx="1" />
+          </svg>
+          <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+            <path d="M4 2L15 9L4 16Z" />
+          </svg>
+        </button>
+        <button class="ctrl-btn" @click="playNext" title="下一曲">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <rect x="12" y="3" width="2" height="10" />
+            <path d="M2 3L10 8L2 13Z" />
+          </svg>
+        </button>
       </div>
-      <div class="player__progress">
-        <span class="time-label">{{ formatTime(displayTime) }}</span>
-        <div
-          class="progress-bar"
-          ref="progressRef"
-          @mousedown="onProgressDown"
-        >
-          <div class="progress-bar__fill" :style="{ width: (displayProgress * 100) + '%' }" />
-          <div class="progress-bar__thumb" :style="{ left: (displayProgress * 100) + '%' }" />
-        </div>
-        <span class="time-label">{{ formatTime(player.duration) }}</span>
-      </div>
-    </div>
 
-    <!-- Volume & mode -->
-    <div class="player__extra">
-      <div class="player__extra-top">
+      <!-- Right: play mode + timer + volume -->
+      <div class="player__extra">
         <button class="ctrl-btn ctrl-btn--small" @click="cyclePlayMode" :title="playModeLabels[player.playMode]">
           {{ playModeIcons[player.playMode] }}
         </button>
         <SleepTimer />
-        <button class="ctrl-btn ctrl-btn--small playlist-toggle" @click="emit('toggle-playlist')" title="播放列表">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-            <rect x="1" y="2" width="12" height="1.5" rx="0.75" />
-            <rect x="1" y="6" width="12" height="1.5" rx="0.75" />
-            <rect x="1" y="10" width="8" height="1.5" rx="0.75" />
-            <circle cx="14" cy="11" r="2.5" fill="none" stroke="currentColor" stroke-width="1.3" />
-            <line x1="16.5" y1="13.5" x2="18" y2="15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+        <div class="vol-group">
+          <svg class="vol-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M2 5.5h2.5L8 2v12L4.5 10.5H2V5.5z" />
+            <path v-if="player.volume > 0.5" d="M10.5 4.5c1.2 1 2 2.2 2 3.5s-.8 2.5-2 3.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+            <path v-if="player.volume > 0" d="M12 2.5c1.8 1.5 3 3.3 3 5.5s-1.2 4-3 5.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
           </svg>
-        </button>
-      </div>
-      <div class="player__extra-bottom">
-        <span class="vol-icon">🔊</span>
-        <input
-          type="range"
-          class="vol-slider"
-          min="0"
-          max="1"
-          step="0.01"
-          :value="player.volume"
-          @input="handleVolumeChange"
-        />
+          <input
+            type="range"
+            class="vol-slider"
+            min="0"
+            max="1"
+            step="0.01"
+            :value="player.volume"
+            @input="handleVolumeChange"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -214,92 +222,117 @@ onUnmounted(() => {
 <style scoped>
 .player {
   display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 16px 24px;
+  flex-direction: column;
   background: var(--bg-player, rgba(0, 0, 0, 0.4));
   backdrop-filter: blur(20px);
-  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
-  min-height: 100px;
 }
 
-.player__track {
+/* Progress bar as top divider */
+.player__progress-wrap {
   display: flex;
   align-items: center;
-  gap: 14px;
-  width: 240px;
-  flex-shrink: 0;
+  height: 24px;
+  padding: 0 16px;
+  gap: 8px;
 }
 
-.player__cover {
-  width: 60px;
-  height: 60px;
-  border-radius: var(--radius-sm, 8px);
-  overflow: hidden;
-  flex-shrink: 0;
+.progress-bar {
+  flex: 1;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+  transition: height 0.15s;
 }
 
-.player__cover img {
-  width: 100%;
+.progress-bar:hover {
+  height: 5px;
+}
+
+.progress-bar__fill {
   height: 100%;
-  object-fit: cover;
+  background: var(--accent, #667eea);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+  position: relative;
 }
 
-.player__cover--empty {
+.progress-bar:hover .progress-bar__fill::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.time-label {
+  font-size: 11px;
+  opacity: 0.4;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  width: 36px;
+  user-select: none;
+}
+
+.time-label--left {
+  text-align: right;
+}
+
+.time-label--right {
+  text-align: left;
+}
+
+/* Controls row */
+.player__row {
+  display: flex;
+  align-items: center;
+  padding: 4px 20px 12px;
+  gap: 0;
+}
+
+/* Playlist button: left side, larger */
+.player__playlist-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  color: var(--text-secondary, #999);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.player__playlist-btn:hover {
   background: rgba(255, 255, 255, 0.08);
-  font-size: 24px;
+  color: var(--text-primary, #fff);
 }
 
-.player__meta {
-  min-width: 0;
-}
-
-.player__title {
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 160px;
-}
-
-.player__artist {
-  font-size: 12px;
-  opacity: 0.5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 160px;
-  margin-top: 2px;
-}
-
-.player__center {
+/* Transport controls: center */
+.player__transport {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  min-width: 0;
-}
-
-.player__controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
 }
 
 .ctrl-btn {
   border: none;
   background: none;
-  color: #e0e0e0;
+  color: var(--text-primary, #e0e0e0);
   cursor: pointer;
-  font-size: 20px;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -308,124 +341,64 @@ onUnmounted(() => {
 }
 
 .ctrl-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .ctrl-btn--play {
-  font-size: 26px;
-  background: rgba(255, 255, 255, 0.1);
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
+  background: var(--accent, #667eea);
+  color: white;
 }
 
 .ctrl-btn--play:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--accent-hover, #5a6fd6);
+  opacity: 0.9;
 }
 
 .ctrl-btn--small {
-  font-size: 16px;
   width: 32px;
   height: 32px;
+  font-size: 14px;
 }
 
-.player__progress {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.time-label {
-  font-size: 12px;
-  opacity: 0.5;
-  flex-shrink: 0;
-  width: 40px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 5px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  position: relative;
-  cursor: pointer;
-}
-
-.progress-bar:hover {
-  height: 7px;
-}
-
-.progress-bar__fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent, #667eea), #764ba2);
-  border-radius: 3px;
-  transition: width 0.1s linear;
-}
-
-.progress-bar__thumb {
-  position: absolute;
-  top: 50%;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: white;
-  transform: translate(-50%, -50%);
-  opacity: 0;
-  transition: opacity 0.15s;
-  pointer-events: none;
-}
-
-.progress-bar:hover .progress-bar__thumb {
-  opacity: 1;
-}
-
+/* Extra controls: right side */
 .player__extra {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  width: 200px;
-  flex-shrink: 0;
-}
-
-.player__extra-top {
   display: flex;
   align-items: center;
   gap: 4px;
-  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
-.player__extra-bottom {
+.vol-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  justify-content: flex-end;
+  gap: 6px;
+  margin-left: 4px;
 }
 
 .vol-icon {
-  font-size: 16px;
-  opacity: 0.6;
+  opacity: 0.5;
+  flex-shrink: 0;
 }
 
 .vol-slider {
-  width: 90px;
-  height: 5px;
+  width: 70px;
+  height: 3px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
   outline: none;
 }
 
 .vol-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: white;
   cursor: pointer;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
 }
 </style>
