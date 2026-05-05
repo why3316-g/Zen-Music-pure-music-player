@@ -49,13 +49,15 @@ async function openFiles() {
   await addAndPlay(paths)
 }
 
-async function addAndPlay(filePaths: string[]) {
+async function addAndPlay(filePaths: string[], autoPlay = false) {
   const tracks = await scanFiles(filePaths)
   if (tracks.length === 0) return
-  const shouldPlay = playlist.tracks.length === 0
+  const shouldPlay = autoPlay || playlist.tracks.length === 0
+  const startIdx = playlist.tracks.length
   playlist.addTracks(tracks)
   if (shouldPlay) {
-    const track = playlist.tracks[0]
+    const track = playlist.tracks[startIdx]
+    playlist.setCurrentIndex(startIdx)
     player.setTrack(track)
     audioEngine.connectAnalyser()
     await audioEngine.load(track.filePath)
@@ -121,8 +123,11 @@ onMounted(() => {
 
   document.addEventListener('dragover', (e) => {
     e.preventDefault()
-    isDraggingOver.value = true
+    if (!e.dataTransfer?.types.includes('application/zen-music-track')) {
+      isDraggingOver.value = true
+    }
   })
+  document.addEventListener('contextmenu', (e) => e.preventDefault())
   document.addEventListener('dragleave', () => {
     isDraggingOver.value = false
   })
@@ -143,7 +148,7 @@ onMounted(() => {
 
   // Handle files opened via file association (double-click in Explorer)
   window.api.onOpenFiles(async (paths: string[]) => {
-    if (paths.length > 0) await addAndPlay(paths)
+    if (paths.length > 0) await addAndPlay(paths, true)
   })
 
   // Zen mode: auto-hide UI after 5s idle

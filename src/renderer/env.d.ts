@@ -18,5 +18,6 @@ interface Window {
     toAppUrl: (filePath: string) => string
     getPathForFile: (file: File) => string
     onOpenFiles: (callback: (paths: string[]) => void) => void
+    showInFolder: (filePath: string) => Promise<void>
   }
 }

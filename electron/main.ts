@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell } from 'electron'
 import { readFile, stat } from 'fs/promises'
 import { createReadStream } from 'fs'
 import { join } from 'path'
@@ -207,4 +207,9 @@ ipcMain.handle('file:readBuffer', async (_e, filePath: string) => {
 // IPC: drop files from renderer
 ipcMain.on('drop:files', (_e, paths: string[]) => {
   mainWindow?.webContents.send('drop:files', paths)
+})
+
+// IPC: show file in system explorer
+ipcMain.handle('shell:showInFolder', async (_e, filePath: string) => {
+  await shell.showItemInFolder(filePath)
 })

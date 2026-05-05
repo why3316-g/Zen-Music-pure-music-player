@@ -102,6 +102,39 @@ export const usePlaylistStore = defineStore('playlist', () => {
     if (list) activeListId.value = id
   }
 
+  function moveTrack(fromIndex: number, toIndex: number) {
+    const list = activeList.value
+    if (fromIndex === toIndex) return
+    const [track] = list.tracks.splice(fromIndex, 1)
+    list.tracks.splice(toIndex, 0, track)
+
+    const ci = list.currentIndex
+    if (ci < 0) return
+    if (ci === fromIndex) {
+      list.currentIndex = toIndex
+    } else {
+      let newCi = ci
+      if (fromIndex < ci) newCi--
+      if (toIndex <= newCi) newCi++
+      list.currentIndex = newCi
+    }
+  }
+
+  function moveTrackToList(trackIndex: number, targetListId: string) {
+    const sourceList = activeList.value
+    const targetList = lists.value.find(l => l.id === targetListId)
+    if (!targetList || sourceList.id === targetListId) return
+    const [track] = sourceList.tracks.splice(trackIndex, 1)
+    targetList.tracks.push(track)
+    if (sourceList.tracks.length === 0) {
+      sourceList.currentIndex = -1
+    } else if (trackIndex < sourceList.currentIndex) {
+      sourceList.currentIndex--
+    } else if (trackIndex === sourceList.currentIndex) {
+      sourceList.currentIndex = Math.min(sourceList.currentIndex, sourceList.tracks.length - 1)
+    }
+  }
+
   /** Serialize for persistence */
   function toJSON() {
     return { lists: lists.value, activeListId: activeListId.value }
@@ -118,6 +151,6 @@ export const usePlaylistStore = defineStore('playlist', () => {
   return {
     lists, activeListId, tracks, currentIndex, currentTrack, currentListName,
     addTracks, removeTrack, clear, setCurrentIndex, next, prev,
-    createList, deleteList, switchList, toJSON, fromJSON
+    createList, deleteList, switchList, moveTrack, moveTrackToList, toJSON, fromJSON
   }
 })

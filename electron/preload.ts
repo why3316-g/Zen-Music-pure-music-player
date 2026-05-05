@@ -27,5 +27,8 @@ contextBridge.exposeInMainWorld('api', {
   // Receive files opened via file association
   onOpenFiles: (callback: (paths: string[]) => void) => {
     ipcRenderer.on('open-files', (_e, paths) => callback(paths))
-  }
+  },
+
+  // Show file in system explorer
+  showInFolder: (filePath: string) => ipcRenderer.invoke('shell:showInFolder', filePath)
 })
