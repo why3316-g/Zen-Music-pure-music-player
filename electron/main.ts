@@ -5,10 +5,23 @@ import { join } from 'path'
 import { Readable } from 'stream'
 
 const MIME_TYPES: Record<string, string> = {
+  // Audio
   '.mp3': 'audio/mpeg', '.flac': 'audio/flac', '.wav': 'audio/wav',
   '.ogg': 'audio/ogg', '.aac': 'audio/aac', '.m4a': 'audio/mp4',
-  '.wma': 'audio/x-ms-wma', '.mp4': 'video/mp4', '.mkv': 'video/x-matroska',
-  '.avi': 'video/x-msvideo', '.webm': 'video/webm'
+  '.wma': 'audio/x-ms-wma', '.ape': 'audio/x-ape', '.alac': 'audio/mp4',
+  '.opus': 'audio/opus', '.aiff': 'audio/aiff', '.aif': 'audio/aiff',
+  '.mid': 'audio/midi', '.midi': 'audio/midi',
+  '.dsf': 'audio/x-dsf', '.dff': 'audio/x-dff',
+  '.wv': 'audio/x-wavpack', '.tta': 'audio/x-tta',
+  '.ac3': 'audio/ac3', '.dts': 'audio/dts',
+  '.cda': 'application/x-cda',
+  // Video
+  '.mp4': 'video/mp4', '.mkv': 'video/x-matroska',
+  '.avi': 'video/x-msvideo', '.webm': 'video/webm',
+  '.mov': 'video/quicktime', '.wmv': 'video/x-ms-wmv',
+  '.flv': 'video/x-flv', '.3gp': 'video/3gpp',
+  '.ts': 'video/mp2t', '.m4v': 'video/mp4',
+  '.mpeg': 'video/mpeg', '.mpg': 'video/mpeg'
 }
 
 function getMimeType(filePath: string): string {
@@ -174,7 +187,7 @@ ipcMain.handle('dialog:openFiles', async () => {
   const result = await dialog.showOpenDialog({
     properties: ['openFile', 'multiSelections'],
     filters: [
-      { name: 'Audio & Video', extensions: ['mp3', 'flac', 'wav', 'ogg', 'aac', 'm4a', 'wma', 'mp4', 'mkv', 'avi', 'webm'] },
+      { name: 'Audio & Video', extensions: ['mp3', 'flac', 'wav', 'ogg', 'aac', 'm4a', 'wma', 'ape', 'alac', 'opus', 'aiff', 'aif', 'mid', 'midi', 'dsf', 'dff', 'wv', 'tta', 'ac3', 'dts', 'mp4', 'mkv', 'avi', 'webm', 'mov', 'wmv', 'flv', '3gp', 'm4v', 'mpeg', 'mpg'] },
       { name: 'All Files', extensions: ['*'] }
     ]
   })

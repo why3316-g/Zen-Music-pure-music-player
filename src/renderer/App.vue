@@ -10,6 +10,7 @@ import Player from './components/Player.vue'
 import Playlist from './components/Playlist.vue'
 import Visualizer from './components/Visualizer.vue'
 import VinylDisc from './components/VinylDisc.vue'
+import LyricsPanel from './components/LyricsPanel.vue'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
 import VisualizerSwitcher from './components/VisualizerSwitcher.vue'
 import LotusDisc from './components/LotusDisc.vue'
@@ -238,6 +239,7 @@ watch(() => player.isPlaying, (playing) => {
         <div v-else class="center__content">
           <VinylDisc />
           <LotusDisc :zen-mode="zenMode" />
+          <LyricsPanel />
           <div class="now-playing" :class="{ 'zen-fade': zenMode }" v-if="player.currentTrack && theme.currentTheme !== 'vinyl' && !isZenTheme">
             <div class="now-playing__cover" v-if="player.currentTrack.coverUrl">
               <img :src="player.currentTrack.coverUrl" alt="cover" />

@@ -31,6 +31,45 @@ fileAssociations:
   - ext: wma
     name: WMA Audio
     role: Viewer
+  - ext: ape
+    name: APE Audio
+    role: Viewer
+  - ext: alac
+    name: ALAC Audio
+    role: Viewer
+  - ext: opus
+    name: Opus Audio
+    role: Viewer
+  - ext: aiff
+    name: AIFF Audio
+    role: Viewer
+  - ext: aif
+    name: AIFF Audio
+    role: Viewer
+  - ext: mid
+    name: MIDI Audio
+    role: Viewer
+  - ext: midi
+    name: MIDI Audio
+    role: Viewer
+  - ext: dsf
+    name: DSF Audio
+    role: Viewer
+  - ext: dff
+    name: DFF Audio
+    role: Viewer
+  - ext: wv
+    name: WavPack Audio
+    role: Viewer
+  - ext: tta
+    name: TTA Audio
+    role: Viewer
+  - ext: ac3
+    name: AC3 Audio
+    role: Viewer
+  - ext: dts
+    name: DTS Audio
+    role: Viewer
   - ext: mp4
     name: MP4 Video
     role: Viewer
@@ -42,6 +81,27 @@ fileAssociations:
     role: Viewer
   - ext: webm
     name: WebM Video
+    role: Viewer
+  - ext: mov
+    name: MOV Video
+    role: Viewer
+  - ext: wmv
+    name: WMV Video
+    role: Viewer
+  - ext: flv
+    name: FLV Video
+    role: Viewer
+  - ext: 3gp
+    name: 3GP Video
+    role: Viewer
+  - ext: m4v
+    name: M4V Video
+    role: Viewer
+  - ext: mpeg
+    name: MPEG Video
+    role: Viewer
+  - ext: mpg
+    name: MPEG Video
     role: Viewer
 win:
   target:

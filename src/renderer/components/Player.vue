@@ -85,6 +85,12 @@ function cyclePlayMode() {
   player.setPlayMode(modes[(idx + 1) % modes.length])
 }
 
+function seekBy(delta: number) {
+  const target = Math.max(0, Math.min(audioEngine.duration, audioEngine.currentTime + delta))
+  audioEngine.seek(target)
+  player.seek(target)
+}
+
 async function playNext() {
   const idx = playlist.next()
   if (idx >= 0 && playlist.tracks[idx]) {
@@ -121,9 +127,16 @@ onMounted(() => {
   window.addEventListener('mousemove', onProgressMove)
 
   window.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.code === 'Space' && e.target === document.body) {
+    if (e.target !== document.body) return
+    if (e.code === 'Space') {
       e.preventDefault()
       togglePlay()
+    } else if (e.code === 'ArrowRight') {
+      e.preventDefault()
+      seekBy(5)
+    } else if (e.code === 'ArrowLeft') {
+      e.preventDefault()
+      seekBy(-5)
     }
   })
 })
