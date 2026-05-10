@@ -9,6 +9,7 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "pack": "electron-builder --win --dir",
+    "predist": "npm run build",
     "dist": "electron-builder --win",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -54,6 +54,23 @@ export const usePlaylistStore = defineStore('playlist', () => {
     }
   }
 
+  function removeTracks(indices: number[]) {
+    if (indices.length === 0) return
+    const list = activeList.value
+    const indexSet = new Set(indices)
+    const ci = list.currentIndex
+    const removedBefore = indices.filter(i => i < ci).length
+    const isCurrentRemoved = indexSet.has(ci)
+    list.tracks = list.tracks.filter((_, i) => !indexSet.has(i))
+    if (list.tracks.length === 0) {
+      list.currentIndex = -1
+    } else if (isCurrentRemoved) {
+      list.currentIndex = Math.min(ci - removedBefore, list.tracks.length - 1)
+    } else {
+      list.currentIndex = ci - removedBefore
+    }
+  }
+
   function clear() {
     const list = activeList.value
     list.tracks = []
@@ -150,7 +167,7 @@ export const usePlaylistStore = defineStore('playlist', () => {
 
   return {
     lists, activeListId, tracks, currentIndex, currentTrack, currentListName,
-    addTracks, removeTrack, clear, setCurrentIndex, next, prev,
+    addTracks, removeTrack, removeTracks, clear, setCurrentIndex, next, prev,
     createList, deleteList, switchList, moveTrack, moveTrackToList, toJSON, fromJSON
   }
 })

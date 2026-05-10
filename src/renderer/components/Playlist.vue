@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, triggerRef } from 'vue'
 import { usePlaylistStore } from '../stores/playlist'
 import { usePlayerStore } from '../stores/player'
 import { scanFiles } from '../services/file-scanner'
@@ -12,6 +12,11 @@ const player = usePlayerStore()
 const showNewListInput = ref(false)
 const newListName = ref('')
 const showListDropdown = ref(false)
+
+// Multi-select state
+const selectedIndices = ref(new Set<number>())
+const lastClickedIndex = ref(-1)
+const hasSelection = computed(() => selectedIndices.value.size > 0)
 
 // Context menu state
 const ctxMenu = ref<{
@@ -29,6 +34,27 @@ const dropPos = ref<'before' | 'after' | null>(null)
 const otherLists = computed(() =>
   playlist.lists.filter(l => l.id !== playlist.activeListId)
 )
+
+// --- Selection helpers ---
+
+function clearSelection() {
+  selectedIndices.value.clear()
+  triggerRef(selectedIndices)
+}
+
+function deleteSelected() {
+  if (selectedIndices.value.size === 0) return
+  playlist.removeTracks([...selectedIndices.value])
+  selectedIndices.value.clear()
+  triggerRef(selectedIndices)
+}
+
+// Clear selection when playlist content changes (switch list, add, etc.)
+watch(() => playlist.tracks, () => {
+  clearSelection()
+})
+
+// --- File operations ---
 
 async function openFiles() {
   const paths = await window.api.openFiles()
@@ -77,11 +103,41 @@ function switchList(id: string) {
   showListDropdown.value = false
 }
 
+// --- Track click (multi-select aware) ---
+
+function onTrackClick(e: MouseEvent, index: number) {
+  if (e.ctrlKey || e.metaKey) {
+    // Toggle single
+    const s = selectedIndices.value
+    if (s.has(index)) s.delete(index)
+    else s.add(index)
+    triggerRef(selectedIndices)
+    lastClickedIndex.value = index
+  } else if (e.shiftKey && lastClickedIndex.value >= 0) {
+    // Range select
+    const start = Math.min(lastClickedIndex.value, index)
+    const end = Math.max(lastClickedIndex.value, index)
+    selectedIndices.value.clear()
+    for (let i = start; i <= end; i++) selectedIndices.value.add(i)
+    triggerRef(selectedIndices)
+  } else {
+    // Plain click → play
+    selectedIndices.value.clear()
+    triggerRef(selectedIndices)
+    lastClickedIndex.value = index
+    playTrack(index)
+  }
+}
+
 // --- Context menu ---
 
 async function onContextMenu(e: MouseEvent, index: number) {
   e.preventDefault()
   e.stopPropagation()
+  // If right-clicking an unselected item, clear selection
+  if (!selectedIndices.value.has(index)) {
+    clearSelection()
+  }
   ctxMenu.value = { visible: true, x: e.clientX, y: e.clientY, index }
   await nextTick()
   const el = document.querySelector('.ctx-menu') as HTMLElement
@@ -117,12 +173,26 @@ function ctxPlayNext() {
 }
 
 function ctxRemove() {
-  removeTrack(ctxMenu.value.index)
+  if (selectedIndices.value.size > 1) {
+    // Batch delete via context menu
+    deleteSelected()
+  } else {
+    removeTrack(ctxMenu.value.index)
+  }
   closeCtx()
 }
 
 function ctxMoveToList(listId: string) {
-  playlist.moveTrackToList(ctxMenu.value.index, listId)
+  if (selectedIndices.value.size > 1) {
+    // Move all selected tracks
+    const sorted = [...selectedIndices.value].sort((a, b) => b - a)
+    for (const idx of sorted) {
+      playlist.moveTrackToList(idx, listId)
+    }
+    clearSelection()
+  } else {
+    playlist.moveTrackToList(ctxMenu.value.index, listId)
+  }
   closeCtx()
 }
 
@@ -135,6 +205,7 @@ function ctxShowInFolder() {
 // --- Drag reorder ---
 
 function onTrackDragStart(e: DragEvent, index: number) {
+  if (selectedIndices.value.size > 1 && selectedIndices.value.has(index)) return
   dragIndex.value = index
   e.dataTransfer!.setData('application/zen-music-track', String(index))
   e.dataTransfer!.effectAllowed = 'move'
@@ -209,16 +280,37 @@ async function onDrop(e: DragEvent) {
   }
 }
 
+// --- Keyboard ---
+
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Delete' && selectedIndices.value.size > 0) {
+    e.preventDefault()
+    deleteSelected()
+  } else if (e.key === 'Escape') {
+    if (selectedIndices.value.size > 0) clearSelection()
+    else closeCtx()
+  }
+}
+
 // --- Lifecycle ---
 
-function onDocClick() { closeCtx() }
+function onDocClick(e: MouseEvent) {
+  closeCtx()
+  // Clear selection when clicking outside the playlist
+  const target = e.target as HTMLElement
+  if (!target.closest('.playlist')) {
+    clearSelection()
+  }
+}
 
 onMounted(() => {
   document.addEventListener('click', onDocClick)
+  document.addEventListener('keydown', onKeyDown)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
+  document.removeEventListener('keydown', onKeyDown)
 })
 </script>
 
@@ -285,13 +377,14 @@ onUnmounted(() => {
         :key="track.filePath + i"
         class="playlist__item"
         :class="{
-          'playlist__item--active': i === playlist.currentIndex,
+          'playlist__item--active': i === playlist.currentIndex && !selectedIndices.has(i),
+          'playlist__item--selected': selectedIndices.has(i),
           'playlist__item--dragging': dragIndex === i,
           'playlist__item--drop-before': dropTargetIdx === i && dropPos === 'before' && dragIndex !== i,
           'playlist__item--drop-after': dropTargetIdx === i && dropPos === 'after' && dragIndex !== i
         }"
         draggable="true"
-        @click="playTrack(i)"
+        @click="onTrackClick($event, i)"
         @contextmenu="onContextMenu($event, i)"
         @dragstart="onTrackDragStart($event, i)"
         @dragover="onTrackDragOver($event, i)"
@@ -299,8 +392,12 @@ onUnmounted(() => {
         @dragend="onTrackDragEnd"
       >
         <div class="playlist__item-index">
-          <span v-if="i === playlist.currentIndex && player.isPlaying">♪</span>
-          <span v-else>{{ i + 1 }}</span>
+          <svg v-if="selectedIndices.has(i)" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect x="1" y="1" width="12" height="12" rx="3" stroke="var(--accent, #667eea)" stroke-width="1.5" />
+            <path d="M4 7L6.5 9.5L10 4.5" stroke="var(--accent, #667eea)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <template v-else-if="i === playlist.currentIndex && player.isPlaying">♪</template>
+          <template v-else>{{ i + 1 }}</template>
         </div>
         <div class="playlist__item-meta">
           <div class="playlist__item-title">{{ track.title }}</div>
@@ -308,6 +405,15 @@ onUnmounted(() => {
         </div>
         <span class="playlist__item-duration">{{ formatTime(track.duration) }}</span>
         <button class="playlist__item-remove" @click.stop="removeTrack(i)">✕</button>
+      </div>
+    </div>
+
+    <!-- Selection action bar -->
+    <div class="selection-bar" v-if="hasSelection">
+      <span class="selection-bar__info">已选 {{ selectedIndices.size }} 首</span>
+      <div class="selection-bar__actions">
+        <button class="selection-bar__btn selection-bar__btn--clear" @click="clearSelection">取消</button>
+        <button class="selection-bar__btn selection-bar__btn--delete" @click="deleteSelected">删除</button>
       </div>
     </div>
 
@@ -344,7 +450,8 @@ onUnmounted(() => {
         </div>
         <div class="ctx-menu__sep"></div>
         <div class="ctx-menu__item ctx-menu__item--danger" @click="ctxRemove">
-          <span class="ctx-menu__icon">✕</span> 从列表中删除
+          <span class="ctx-menu__icon">✕</span>
+          {{ selectedIndices.size > 1 ? `删除已选 ${selectedIndices.size} 首` : '从列表中删除' }}
         </div>
         <div class="ctx-menu__sep"></div>
         <div class="ctx-menu__item" @click="ctxShowInFolder">
@@ -593,6 +700,14 @@ onUnmounted(() => {
   color: var(--accent, #667eea);
 }
 
+.playlist__item--selected {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.playlist__item--selected:hover {
+  background: rgba(102, 126, 234, 0.15);
+}
+
 .playlist__item--dragging {
   opacity: 0.3;
 }
@@ -616,6 +731,10 @@ onUnmounted(() => {
 .playlist__item--active .playlist__item-index {
   opacity: 1;
   color: var(--accent, #667eea);
+}
+
+.playlist__item--selected .playlist__item-index {
+  opacity: 1;
 }
 
 .playlist__item-meta {
@@ -660,6 +779,61 @@ onUnmounted(() => {
 
 .playlist__item-remove:hover {
   color: #e81123;
+}
+
+/* Selection action bar */
+.selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg-elevated, rgba(30, 30, 50, 0.95));
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  backdrop-filter: blur(12px);
+  animation: selectionBarIn 0.15s ease;
+}
+
+@keyframes selectionBarIn {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.selection-bar__info {
+  font-size: 13px;
+  color: var(--accent, #667eea);
+  font-weight: 500;
+}
+
+.selection-bar__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.selection-bar__btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.selection-bar__btn--clear {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary, #ccc);
+}
+
+.selection-bar__btn--clear:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.selection-bar__btn--delete {
+  background: rgba(232, 17, 35, 0.15);
+  color: #e81123;
+}
+
+.selection-bar__btn--delete:hover {
+  background: rgba(232, 17, 35, 0.25);
 }
 </style>
 
