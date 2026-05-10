@@ -1,45 +1,48 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
+import { storeToRefs } from 'pinia'
 import { usePlayerStore } from '../stores/player'
 import { parseLRC, findCurrentLine } from '../utils/lrc-parser'
 import type { LyricLine } from '../utils/lrc-parser'
 
-const player = usePlayerStore()
+const store = usePlayerStore()
+const { currentTime } = storeToRefs(store)
 
 const lines = ref<LyricLine[]>([])
-const activeLine = ref(-1)
 const containerRef = ref<HTMLElement | null>(null)
 
-// 用 watch 显式追踪 player.currentTime，确保每次更新都触发
-watch(() => player.currentTime, (time) => {
-  if (lines.value.length === 0) return
-  const idx = findCurrentLine(lines.value, time)
-  if (idx !== activeLine.value) {
-    activeLine.value = idx
-    scrollTo(idx)
-  }
-})
+const activeLine = computed(() =>
+  lines.value.length > 0 ? findCurrentLine(lines.value, currentTime.value) : -1
+)
 
-// 歌词加载后也要算一次
-watch(lines, () => {
-  if (lines.value.length > 0) {
-    activeLine.value = findCurrentLine(lines.value, player.currentTime)
-    nextTick(() => scrollTo(activeLine.value))
-  } else {
-    activeLine.value = -1
+function getLineStyle(i: number) {
+  const idx = activeLine.value
+  if (idx < 0) return undefined
+  const d = Math.abs(i - idx)
+  if (d === 0) return {
+    fontSize: '22px',
+    fontWeight: '700',
+    color: 'var(--accent, #667eea)',
+    opacity: '1'
   }
-})
-
-async function scrollTo(idx: number) {
-  if (idx < 0 || !containerRef.value) return
-  await nextTick()
-  const el = containerRef.value.children[idx] as HTMLElement | undefined
-  if (!el) return
-  const container = containerRef.value
-  container.scrollTo({
-    top: el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2,
-    behavior: 'smooth'
-  })
+  if (d === 1) return {
+    fontSize: '15px',
+    fontWeight: '400',
+    color: 'var(--text-secondary, #ccc)',
+    opacity: '0.7'
+  }
+  if (d === 2) return {
+    fontSize: '15px',
+    fontWeight: '400',
+    color: 'var(--text-tertiary, #888)',
+    opacity: '0.35'
+  }
+  return {
+    fontSize: '15px',
+    fontWeight: '400',
+    color: 'var(--text-tertiary, #888)',
+    opacity: '0.15'
+  }
 }
 
 async function loadLyrics(filePath: string) {
@@ -55,10 +58,26 @@ async function loadLyrics(filePath: string) {
   }
 }
 
-watch(() => player.currentTrack, (track) => {
+watch(() => store.currentTrack, (track) => {
   if (track?.filePath) loadLyrics(track.filePath)
   else lines.value = []
 }, { immediate: true })
+
+watch(activeLine, (idx) => {
+  if (idx >= 0) {
+    nextTick(() => {
+      const container = containerRef.value
+      if (!container) return
+      const el = container.children[idx] as HTMLElement | undefined
+      if (el) {
+        container.scrollTo({
+          top: el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2,
+          behavior: 'smooth'
+        })
+      }
+    })
+  }
+})
 </script>
 
 <template>
@@ -67,13 +86,8 @@ watch(() => player.currentTrack, (track) => {
       <div
         v-for="(line, i) in lines"
         :key="i"
-        class="lyrics__line"
-        :class="{
-          'lyrics__line--active': i === activeLine,
-          'lyrics__line--near': Math.abs(i - activeLine) === 1,
-          'lyrics__line--dim': Math.abs(i - activeLine) === 2,
-          'lyrics__line--far': Math.abs(i - activeLine) >= 3
-        }"
+        class="lyrics__item"
+        :style="getLineStyle(i)"
       >{{ line.text }}</div>
     </div>
   </div>
@@ -81,6 +95,8 @@ watch(() => player.currentTrack, (track) => {
 
 <style scoped>
 .lyrics {
+  position: relative;
+  z-index: 2;
   width: 100%;
   max-width: 480px;
   padding: 0 24px;
@@ -111,35 +127,14 @@ watch(() => player.currentTrack, (track) => {
   display: none;
 }
 
-.lyrics__line {
+.lyrics__item {
   text-align: center;
   padding: 8px 0;
   font-size: 15px;
   line-height: 1.6;
-  color: var(--text-tertiary, #888);
-  transition: color 0.35s ease, font-size 0.35s ease, opacity 0.35s ease, font-weight 0.35s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.lyrics__line--active {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--accent, #667eea);
-}
-
-.lyrics__line--near {
-  font-size: 15px;
-  color: var(--text-secondary, #ccc);
-  opacity: 0.7;
-}
-
-.lyrics__line--dim {
-  opacity: 0.35;
-}
-
-.lyrics__line--far {
-  opacity: 0.15;
+  transition: all 0.35s ease;
 }
 </style>
