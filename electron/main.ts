@@ -34,6 +34,10 @@ let tray: Tray | null = null
 let isQuitting = false
 let pendingFiles: string[] = []
 
+const trayIconPath = app.isPackaged
+  ? join(process.resourcesPath, 'icon.ico')
+  : join(__dirname, '../../build/icon.ico')
+
 function sendFilesToRenderer(files: string[]) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('open-files', files)
@@ -172,7 +176,7 @@ app.on('before-quit', () => {
 })
 
 function createTray() {
-  tray = new Tray(join(__dirname, '../../build/icon.ico'))
+  tray = new Tray(trayIconPath)
   tray.setToolTip('Zen·Music')
   const contextMenu = Menu.buildFromTemplate([
     {

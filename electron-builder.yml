@@ -3,6 +3,9 @@ productName: Zen·Music
 directories:
   buildResources: build
 afterPack: build/afterPack.js
+extraResources:
+  - from: build/icon.ico
+    to: icon.ico
 files:
   - '!**/.vscode/*'
   - '!src/*'
