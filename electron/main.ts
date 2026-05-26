@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Tray, Menu } from 'electron'
 import { readFile, stat } from 'fs/promises'
 import { createReadStream } from 'fs'
 import { join } from 'path'
@@ -30,6 +30,8 @@ function getMimeType(filePath: string): string {
 }
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
+let isQuitting = false
 let pendingFiles: string[] = []
 
 function sendFilesToRenderer(files: string[]) {
@@ -74,6 +76,14 @@ function createWindow() {
 
   // Forward dropped files to renderer
   mainWindow.webContents.on('will-navigate', (e) => e.preventDefault())
+
+  // Minimize to tray instead of closing
+  mainWindow.on('close', (e) => {
+    if (!isQuitting) {
+      e.preventDefault()
+      mainWindow?.hide()
+    }
+  })
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -138,6 +148,7 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+  createTray()
 
   // Send any pending files that arrived before window was ready
   if (pendingFiles.length > 0) {
@@ -153,8 +164,39 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  if (process.platform !== 'darwin' && isQuitting) app.quit()
 })
+
+app.on('before-quit', () => {
+  isQuitting = true
+})
+
+function createTray() {
+  tray = new Tray(join(__dirname, '../../build/icon.ico'))
+  tray.setToolTip('Zen·Music')
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示主窗口',
+      click: () => {
+        mainWindow?.show()
+        mainWindow?.focus()
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        isQuitting = true
+        app.quit()
+      }
+    }
+  ])
+  tray.setContextMenu(contextMenu)
+  tray.on('double-click', () => {
+    mainWindow?.show()
+    mainWindow?.focus()
+  })
+}
 
 // macOS: open file when app is already running
 app.on('open-file', (e, filePath) => {
