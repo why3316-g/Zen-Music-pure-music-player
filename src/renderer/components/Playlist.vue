@@ -6,6 +6,14 @@ import { scanFiles } from '../services/file-scanner'
 import { audioEngine } from '../services/audio-engine'
 import { formatTime } from '../utils/format'
 
+const props = defineProps<{
+  pinned: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'toggle-pin'): void
+}>()
+
 const playlist = usePlaylistStore()
 const player = usePlayerStore()
 
@@ -329,7 +337,21 @@ onUnmounted(() => {
           <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </button>
-      <button class="add-btn" @click="openFiles" title="添加音乐">+</button>
+      <div class="playlist__actions">
+        <button
+          class="pin-btn"
+          :class="{ 'pin-btn--active': props.pinned }"
+          :title="props.pinned ? '取消固定播放列表' : '固定播放列表'"
+          :aria-label="props.pinned ? '取消固定播放列表' : '固定播放列表'"
+          :aria-pressed="props.pinned"
+          @click="emit('toggle-pin')"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 3h6l-1 5 3 3v2h-4v7l-1 2-1-2v-7H7v-2l3-3-1-5Z" />
+          </svg>
+        </button>
+        <button class="add-btn" @click="openFiles" title="添加音乐">+</button>
+      </div>
     </div>
 
     <!-- Dropdown list -->
@@ -518,6 +540,39 @@ onUnmounted(() => {
 
 .selector-btn__arrow--open {
   transform: rotate(180deg);
+}
+
+.playlist__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+}
+
+.pin-btn {
+  border: none;
+  background: none;
+  color: var(--text-primary, #fff);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  opacity: 0.45;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+
+.pin-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0.85;
+}
+
+.pin-btn--active {
+  background: rgba(102, 126, 234, 0.15);
+  color: var(--accent, #667eea);
+  opacity: 1;
 }
 
 .add-btn {

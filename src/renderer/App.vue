@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { usePlaylistStore } from './stores/playlist'
 import { usePlayerStore } from './stores/player'
 import { useThemeStore } from './stores/theme'
 import { useVisualizerStore } from './stores/visualizer'
 import { scanFiles } from './services/file-scanner'
 import { audioEngine } from './services/audio-engine'
+import {
+  createSidebarVisibilityController,
+  readSidebarPinned,
+  writeSidebarPinned
+} from './utils/sidebar-visibility'
 import Player from './components/Player.vue'
 import Playlist from './components/Playlist.vue'
 import Visualizer from './components/Visualizer.vue'
@@ -27,9 +32,20 @@ const isZenTheme = computed(() => theme.currentTheme === 'zen-ripple' || theme.c
 const isMaximized = ref(false)
 const isDraggingOver = ref(false)
 const sidebarVisible = ref(true)
+const sidebarPinned = ref(readSidebarPinned(localStorage))
 const zenMode = ref(false)
-let sidebarTimer: ReturnType<typeof setTimeout> | null = null
 let zenTimer: ReturnType<typeof setTimeout> | null = null
+
+const sidebarVisibility = createSidebarVisibilityController({
+  initialPinned: sidebarPinned.value,
+  onVisibilityChange: (visible) => {
+    sidebarVisible.value = visible
+  },
+  onPinnedChange: (pinned) => {
+    sidebarPinned.value = pinned
+    writeSidebarPinned(localStorage, pinned)
+  }
+})
 
 async function handleMinimize() {
   await window.api.minimize()
@@ -63,23 +79,11 @@ async function addAndPlay(filePaths: string[], autoPlay = false) {
     audioEngine.connectAnalyser()
     await audioEngine.load(track.filePath)
   }
-  resetSidebarTimer()
-}
-
-function resetSidebarTimer() {
-  sidebarVisible.value = true
-  if (sidebarTimer) clearTimeout(sidebarTimer)
-  sidebarTimer = setTimeout(() => {
-    sidebarVisible.value = false
-  }, 5000)
+  sidebarVisibility.show()
 }
 
 function togglePlaylist() {
-  if (sidebarVisible.value) {
-    sidebarVisible.value = false
-  } else {
-    resetSidebarTimer()
-  }
+  sidebarVisibility.toggleVisible()
 }
 
 function wakeZen() {
@@ -106,7 +110,7 @@ onMounted(() => {
   if (playlist.tracks.length > 0 && playlist.currentIndex >= 0) {
     const track = playlist.tracks[playlist.currentIndex]
     if (track) player.setTrack(track, false)
-    resetSidebarTimer()
+    sidebarVisibility.show()
   }
 
   const savedTheme = localStorage.getItem('zen-music-theme')
@@ -164,6 +168,12 @@ onMounted(() => {
     }
   })
   wakeZen()
+  sidebarVisibility.start()
+})
+
+onUnmounted(() => {
+  sidebarVisibility.dispose()
+  if (zenTimer) clearTimeout(zenTimer)
 })
 
 // Persist playlist
@@ -220,11 +230,14 @@ watch(() => player.isPlaying, (playing) => {
         class="sidebar"
         v-if="playlist.tracks.length > 0"
         :class="{ 'sidebar--hidden': !sidebarVisible }"
-        @click="resetSidebarTimer"
-        @mouseenter="resetSidebarTimer"
+        @mouseenter="sidebarVisibility.pointerEnter"
+        @mouseleave="sidebarVisibility.pointerLeave"
       >
         <div class="sidebar__inner">
-          <Playlist />
+          <Playlist
+            :pinned="sidebarPinned"
+            @toggle-pin="sidebarVisibility.togglePinned"
+          />
         </div>
       </aside>
 

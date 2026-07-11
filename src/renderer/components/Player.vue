@@ -4,6 +4,7 @@ import { usePlayerStore } from '../stores/player'
 import { usePlaylistStore } from '../stores/playlist'
 import { audioEngine } from '../services/audio-engine'
 import { formatTime } from '../utils/format'
+import { handlePlaybackShortcut } from '../utils/playback-shortcuts'
 import type { PlayMode } from '../utils/types'
 import SleepTimer from './SleepTimer.vue'
 
@@ -85,12 +86,6 @@ function cyclePlayMode() {
   player.setPlayMode(modes[(idx + 1) % modes.length])
 }
 
-function seekBy(delta: number) {
-  const target = Math.max(0, Math.min(audioEngine.duration, audioEngine.currentTime + delta))
-  audioEngine.seek(target)
-  player.seek(target)
-}
-
 async function playNext() {
   const idx = playlist.next()
   if (idx >= 0 && playlist.tracks[idx]) {
@@ -107,6 +102,14 @@ async function playPrev() {
     await audioEngine.load(playlist.tracks[idx].filePath)
     audioEngine.connectAnalyser()
   }
+}
+
+function onPlaybackKeyDown(e: KeyboardEvent) {
+  handlePlaybackShortcut(e, {
+    togglePlay,
+    playPrev,
+    playNext
+  })
 }
 
 onMounted(() => {
@@ -126,24 +129,13 @@ onMounted(() => {
   window.addEventListener('mouseup', onProgressUp)
   window.addEventListener('mousemove', onProgressMove)
 
-  window.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.target !== document.body) return
-    if (e.code === 'Space') {
-      e.preventDefault()
-      togglePlay()
-    } else if (e.code === 'ArrowRight') {
-      e.preventDefault()
-      seekBy(5)
-    } else if (e.code === 'ArrowLeft') {
-      e.preventDefault()
-      seekBy(-5)
-    }
-  })
+  window.addEventListener('keydown', onPlaybackKeyDown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('mouseup', onProgressUp)
   window.removeEventListener('mousemove', onProgressMove)
+  window.removeEventListener('keydown', onPlaybackKeyDown)
 })
 </script>
 
