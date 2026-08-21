@@ -30,4 +30,12 @@
 
   --player-height: 100px;
   --sidebar-width: 280px;
+
+  /* 进度条 / 音量条的未播放轨道，必须在半透明播放条上清晰可见 */
+  /* 弹出面板必须不透明：半透明底在视频画面上会透出花花绿绿的颜色 */
+  --bg-panel: #2a2018;
+  --track-bg: rgba(245, 230, 211, 0.22);
+  --track-bg-hover: rgba(245, 230, 211, 0.34);
+  --control-bg: rgba(245, 230, 211, 0.07);
+  --control-bg-hover: rgba(245, 230, 211, 0.14);
 }

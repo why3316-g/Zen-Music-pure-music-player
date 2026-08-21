@@ -32,4 +32,12 @@
 
   --player-height: 72px;
   --sidebar-width: 260px;
+
+  /* 进度条 / 音量条的未播放轨道，米黄底上要用深色，浅色几乎看不见 */
+  /* 弹出面板必须不透明：半透明底在视频画面上会透出花花绿绿的颜色 */
+  --bg-panel: #fffdf2;
+  --track-bg: rgba(61, 61, 46, 0.16);
+  --track-bg-hover: rgba(61, 61, 46, 0.26);
+  --control-bg: rgba(61, 61, 46, 0.05);
+  --control-bg-hover: rgba(61, 61, 46, 0.10);
 }

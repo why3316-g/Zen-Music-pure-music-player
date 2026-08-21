@@ -1,3 +1,5 @@
+import type { ArrowKeyAction } from './settings-schema'
+
 export interface PlaybackShortcutEvent {
   code: string
   repeat: boolean
@@ -9,6 +11,18 @@ export interface PlaybackShortcutHandlers {
   togglePlay: () => void | Promise<void>
   playPrev: () => void | Promise<void>
   playNext: () => void | Promise<void>
+  /** 相对当前位置快进（正数）/后退（负数），单位秒 */
+  seekBy: (deltaSeconds: number) => void | Promise<void>
+}
+
+export interface PlaybackShortcutOptions {
+  arrowKeyAction: ArrowKeyAction
+  seekStep: number
+}
+
+export const DEFAULT_SHORTCUT_OPTIONS: PlaybackShortcutOptions = {
+  arrowKeyAction: 'seek',
+  seekStep: 5
 }
 
 interface ElementLike {
@@ -30,17 +44,24 @@ function isEditableTarget(target: unknown): boolean {
 
 export function handlePlaybackShortcut(
   event: PlaybackShortcutEvent,
-  handlers: PlaybackShortcutHandlers
+  handlers: PlaybackShortcutHandlers,
+  options: PlaybackShortcutOptions = DEFAULT_SHORTCUT_OPTIONS
 ): boolean {
-  if (event.repeat || isEditableTarget(event.target)) return false
+  if (isEditableTarget(event.target)) return false
+  // 空格按住不重复触发，方向键按住可以连续快进
+  if (event.repeat && event.code === 'Space') return false
 
-  const handler = event.code === 'Space'
-    ? handlers.togglePlay
-    : event.code === 'ArrowLeft'
-      ? handlers.playPrev
-      : event.code === 'ArrowRight'
-        ? handlers.playNext
-        : null
+  const step = options.seekStep > 0 ? options.seekStep : DEFAULT_SHORTCUT_OPTIONS.seekStep
+  const seeksWithArrows = options.arrowKeyAction !== 'track'
+
+  let handler: (() => void | Promise<void>) | null = null
+  if (event.code === 'Space') {
+    handler = handlers.togglePlay
+  } else if (event.code === 'ArrowLeft') {
+    handler = seeksWithArrows ? () => handlers.seekBy(-step) : handlers.playPrev
+  } else if (event.code === 'ArrowRight') {
+    handler = seeksWithArrows ? () => handlers.seekBy(step) : handlers.playNext
+  }
 
   if (!handler) return false
 

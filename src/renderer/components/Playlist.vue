@@ -2,8 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, triggerRef } from 'vue'
 import { usePlaylistStore } from '../stores/playlist'
 import { usePlayerStore } from '../stores/player'
-import { scanFiles } from '../services/file-scanner'
-import { audioEngine } from '../services/audio-engine'
+import { openFiles as openFilesIntoPlaylist, playAt } from '../services/playback-controller'
 import { formatTime } from '../utils/format'
 
 const props = defineProps<{
@@ -66,26 +65,11 @@ watch(() => playlist.tracks, () => {
 
 async function openFiles() {
   const paths = await window.api.openFiles()
-  if (paths.length === 0) return
-  const tracks = await scanFiles(paths)
-  if (tracks.length === 0) return
-  const shouldPlay = playlist.tracks.length === 0
-  playlist.addTracks(tracks)
-  if (shouldPlay && playlist.tracks[0]) {
-    player.setTrack(playlist.tracks[0])
-    await audioEngine.load(playlist.tracks[0].filePath)
-    audioEngine.connectAnalyser()
-  }
+  await openFilesIntoPlaylist(paths)
 }
 
 async function playTrack(index: number) {
-  playlist.setCurrentIndex(index)
-  const track = playlist.tracks[index]
-  if (track) {
-    player.setTrack(track)
-    await audioEngine.load(track.filePath)
-    audioEngine.connectAnalyser()
-  }
+  await playAt(index, { fromUserPick: true })
 }
 
 function removeTrack(index: number) {
@@ -276,16 +260,7 @@ async function onDrop(e: DragEvent) {
       if (path) paths.push(path)
     } catch {}
   }
-  if (paths.length === 0) return
-  const tracks = await scanFiles(paths)
-  if (tracks.length === 0) return
-  const shouldPlay = playlist.tracks.length === 0
-  playlist.addTracks(tracks)
-  if (shouldPlay && playlist.tracks[0]) {
-    player.setTrack(playlist.tracks[0])
-    await audioEngine.load(playlist.tracks[0].filePath)
-    audioEngine.connectAnalyser()
-  }
+  await openFilesIntoPlaylist(paths)
 }
 
 // --- Keyboard ---

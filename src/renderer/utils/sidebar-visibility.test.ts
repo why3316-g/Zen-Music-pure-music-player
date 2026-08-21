@@ -115,3 +115,45 @@ describe('sidebar pin persistence', () => {
     expect(readSidebarPinned(storage)).toBe(false)
   })
 })
+
+describe('setPinned', () => {
+  it('pins and unpins idempotently, notifying only on change', () => {
+    const onPinnedChange = vi.fn()
+    const onVisibilityChange = vi.fn()
+    const controller = createSidebarVisibilityController({
+      initialPinned: false,
+      hideDelay: 10,
+      onVisibilityChange,
+      onPinnedChange
+    })
+
+    controller.setPinned(true)
+    controller.setPinned(true)
+    expect(onPinnedChange).toHaveBeenCalledTimes(1)
+    expect(controller.pinned).toBe(true)
+
+    controller.setPinned(false)
+    expect(onPinnedChange).toHaveBeenCalledTimes(2)
+    expect(controller.pinned).toBe(false)
+
+    controller.dispose()
+  })
+
+  it('keeps the sidebar open while pinned', () => {
+    vi.useFakeTimers()
+    const controller = createSidebarVisibilityController({
+      initialPinned: false,
+      hideDelay: 10,
+      onVisibilityChange: () => {},
+      onPinnedChange: () => {}
+    })
+
+    controller.setPinned(true)
+    controller.start()
+    vi.advanceTimersByTime(100)
+    expect(controller.visible).toBe(true)
+
+    controller.dispose()
+    vi.useRealTimers()
+  })
+})

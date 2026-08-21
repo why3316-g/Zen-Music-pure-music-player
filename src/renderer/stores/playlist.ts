@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { TrackInfo } from '../utils/types'
+import { dedupeTracks, filterNewTracks } from '../utils/playlist-dedupe'
 
 interface PlayList {
   id: string
@@ -33,13 +34,26 @@ export const usePlaylistStore = defineStore('playlist', () => {
   )
   const currentListName = computed(() => activeList.value.name)
 
-  function addTracks(newTracks: TrackInfo[]) {
+  /** 当前列表里该文件的位置，不存在返回 -1 */
+  function indexOfPath(filePath: string): number {
+    return activeList.value.tracks.findIndex(t => t.filePath === filePath)
+  }
+
+  /**
+   * 追加曲目，同一个文件在一个列表里只保留一条。
+   * 返回真正被加进去的曲目数量。
+   */
+  function addTracks(newTracks: TrackInfo[]): number {
     const list = activeList.value
+    const added = filterNewTracks(list.tracks, newTracks)
+    if (added.length === 0) return 0
+
     const startIdx = list.tracks.length
-    list.tracks.push(...newTracks)
-    if (list.currentIndex === -1 && newTracks.length > 0) {
+    list.tracks.push(...added)
+    if (list.currentIndex === -1) {
       list.currentIndex = startIdx
     }
+    return added.length
   }
 
   function removeTrack(index: number) {
@@ -82,20 +96,6 @@ export const usePlaylistStore = defineStore('playlist', () => {
     if (index >= 0 && index < list.tracks.length) {
       list.currentIndex = index
     }
-  }
-
-  function next(): number {
-    const list = activeList.value
-    if (list.tracks.length === 0) return -1
-    list.currentIndex = (list.currentIndex + 1) % list.tracks.length
-    return list.currentIndex
-  }
-
-  function prev(): number {
-    const list = activeList.value
-    if (list.tracks.length === 0) return -1
-    list.currentIndex = (list.currentIndex - 1 + list.tracks.length) % list.tracks.length
-    return list.currentIndex
   }
 
   function createList(name: string) {
@@ -142,7 +142,10 @@ export const usePlaylistStore = defineStore('playlist', () => {
     const targetList = lists.value.find(l => l.id === targetListId)
     if (!targetList || sourceList.id === targetListId) return
     const [track] = sourceList.tracks.splice(trackIndex, 1)
-    targetList.tracks.push(track)
+    // 目标列表已经有这个文件就直接丢弃，保持"一个文件一条"
+    if (!targetList.tracks.some(t => t.filePath === track.filePath)) {
+      targetList.tracks.push(track)
+    }
     if (sourceList.tracks.length === 0) {
       sourceList.currentIndex = -1
     } else if (trackIndex < sourceList.currentIndex) {
@@ -157,17 +160,23 @@ export const usePlaylistStore = defineStore('playlist', () => {
     return { lists: lists.value, activeListId: activeListId.value }
   }
 
-  /** Restore from persistence */
-  function fromJSON(data: { lists: PlayList[]; activeListId: string }) {
-    if (data?.lists?.length) {
-      lists.value = data.lists
-      activeListId.value = data.activeListId || data.lists[0].id
-    }
+  /** Restore from persistence，顺手清洗历史存档里已经重复的条目 */
+  function fromJSON(data: { lists: PlayList[]; activeListId: string }): number {
+    if (!data?.lists?.length) return 0
+
+    let removed = 0
+    lists.value = data.lists.map(list => {
+      const cleaned = dedupeTracks(list.tracks ?? [], list.currentIndex ?? -1)
+      removed += cleaned.removed
+      return { ...list, tracks: cleaned.tracks, currentIndex: cleaned.currentIndex }
+    })
+    activeListId.value = data.activeListId || lists.value[0].id
+    return removed
   }
 
   return {
     lists, activeListId, tracks, currentIndex, currentTrack, currentListName,
-    addTracks, removeTrack, removeTracks, clear, setCurrentIndex, next, prev,
+    addTracks, removeTrack, removeTracks, clear, setCurrentIndex, indexOfPath,
     createList, deleteList, switchList, moveTrack, moveTrackToList, toJSON, fromJSON
   }
 })

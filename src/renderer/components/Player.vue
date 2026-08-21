@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { usePlayerStore } from '../stores/player'
-import { usePlaylistStore } from '../stores/playlist'
+import { useSettingsStore } from '../stores/settings'
 import { audioEngine } from '../services/audio-engine'
+import { playbackMemory } from '../services/playback-memory'
+import { playNext, playPrev } from '../services/playback-controller'
 import { formatTime } from '../utils/format'
 import { handlePlaybackShortcut } from '../utils/playback-shortcuts'
 import type { PlayMode } from '../utils/types'
 import SleepTimer from './SleepTimer.vue'
 
 const player = usePlayerStore()
-const playlist = usePlaylistStore()
+const settings = useSettingsStore()
 
 const emit = defineEmits<{
   (e: 'toggle-playlist'): void
@@ -32,6 +34,9 @@ const displayTime = computed(() =>
 const displayProgress = computed(() =>
   player.duration > 0 ? displayTime.value / player.duration : 0
 )
+
+const progressSeconds = computed(() => Math.round(displayTime.value))
+const durationSeconds = computed(() => Math.round(player.duration))
 
 async function togglePlay() {
   if (!player.currentTrack) return
@@ -86,35 +91,32 @@ function cyclePlayMode() {
   player.setPlayMode(modes[(idx + 1) % modes.length])
 }
 
-async function playNext() {
-  const idx = playlist.next()
-  if (idx >= 0 && playlist.tracks[idx]) {
-    player.setTrack(playlist.tracks[idx])
-    await audioEngine.load(playlist.tracks[idx].filePath)
-    audioEngine.connectAnalyser()
-  }
-}
-
-async function playPrev() {
-  const idx = playlist.prev()
-  if (idx >= 0 && playlist.tracks[idx]) {
-    player.setTrack(playlist.tracks[idx])
-    await audioEngine.load(playlist.tracks[idx].filePath)
-    audioEngine.connectAnalyser()
-  }
+/** 相对当前位置快进/后退，同步更新进度条 */
+function seekBy(deltaSeconds: number) {
+  if (!player.currentTrack) return
+  const target = audioEngine.seekBy(deltaSeconds)
+  player.seek(target)
 }
 
 function onPlaybackKeyDown(e: KeyboardEvent) {
-  handlePlaybackShortcut(e, {
-    togglePlay,
-    playPrev,
-    playNext
-  })
+  handlePlaybackShortcut(
+    e,
+    { togglePlay, playPrev, playNext, seekBy },
+    { arrowKeyAction: settings.arrowKeyAction, seekStep: settings.seekStep }
+  )
 }
 
 onMounted(() => {
   audioEngine.onTimeUpdate((time) => {
     if (!isDragging.value) player.seek(time)
+
+    // 元数据里的时长对视频常常是 0，用真实时长兜底，否则进度条没法用
+    const realDuration = audioEngine.duration
+    if (realDuration > 0 && Math.abs(realDuration - player.duration) > 1) {
+      player.duration = realDuration
+    }
+
+    playbackMemory.remember(player.currentTrack?.filePath, time, player.duration)
   })
 
   audioEngine.onEnded(() => {
@@ -146,10 +148,21 @@ onUnmounted(() => {
       <span class="time-label time-label--left">{{ formatTime(displayTime) }}</span>
       <div
         class="progress-bar"
+        :class="{ 'progress-bar--active': isDragging }"
         ref="progressRef"
         @mousedown="onProgressDown"
+        role="slider"
+        aria-label="播放进度"
+        aria-valuemin="0"
+        :aria-valuemax="durationSeconds"
+        :aria-valuenow="progressSeconds"
+        :aria-valuetext="formatTime(displayTime)"
       >
-        <div class="progress-bar__fill" :style="{ width: (displayProgress * 100) + '%' }" />
+        <div class="progress-bar__track">
+          <div class="progress-bar__fill" :style="{ width: (displayProgress * 100) + '%' }">
+            <span class="progress-bar__knob" />
+          </div>
+        </div>
       </div>
       <span class="time-label time-label--right">{{ formatTime(player.duration) }}</span>
     </div>
@@ -247,6 +260,10 @@ onUnmounted(() => {
   flex-direction: column;
   background: var(--bg-player, rgba(0, 0, 0, 0.4));
   backdrop-filter: blur(20px);
+  /* backdrop-filter 会造出层叠上下文；不抬 z-index 的话，
+     定时暂停等向上弹出的面板会被视频画面（z-index:10）盖住 */
+  position: relative;
+  z-index: 20;
 }
 
 /* Progress bar as top divider */
@@ -258,39 +275,57 @@ onUnmounted(() => {
   gap: 10px;
 }
 
+/* 外层只当点击热区：细线本身太难点中 */
 .progress-bar {
   flex: 1;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
-  position: relative;
+  height: 18px;
+  display: flex;
+  align-items: center;
   cursor: pointer;
-  transition: height 0.15s;
 }
 
-.progress-bar:hover {
-  height: 6px;
+/* 未播放段落也要有颜色，否则在米黄背景上完全看不见 */
+.progress-bar__track {
+  position: relative;
+  width: 100%;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--track-bg, rgba(128, 128, 128, 0.28));
+  transition: height 0.15s ease, background 0.15s ease;
+}
+
+.progress-bar:hover .progress-bar__track,
+.progress-bar--active .progress-bar__track {
+  height: 7px;
+  background: var(--track-bg-hover, rgba(128, 128, 128, 0.42));
 }
 
 .progress-bar__fill {
+  position: relative;
   height: 100%;
   background: var(--accent, #667eea);
-  border-radius: 2px;
+  border-radius: 3px;
   transition: width 0.1s linear;
-  position: relative;
 }
 
-.progress-bar:hover .progress-bar__fill::after {
-  content: '';
+/* 常驻圆点：既标出播放位置，也提示这条可以拖 */
+.progress-bar__knob {
   position: absolute;
-  right: -6px;
+  right: 0;
   top: 50%;
-  transform: translateY(-50%);
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  background: white;
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+  background: var(--accent, #667eea);
+  transform: translate(50%, -50%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.32);
+  transition: width 0.15s ease, height 0.15s ease;
+}
+
+.progress-bar:hover .progress-bar__knob,
+.progress-bar--active .progress-bar__knob {
+  width: 14px;
+  height: 14px;
 }
 
 .time-label {
@@ -336,8 +371,17 @@ onUnmounted(() => {
 }
 
 .player__playlist-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--control-bg-hover, rgba(128, 128, 128, 0.14));
   color: var(--text-primary, #fff);
+}
+
+.player__playlist-btn:active {
+  transform: scale(0.94);
+}
+
+.player__playlist-btn:focus-visible {
+  outline: 2px solid var(--accent, #667eea);
+  outline-offset: 2px;
 }
 
 /* Transport controls: center — grid auto column */
@@ -363,7 +407,16 @@ onUnmounted(() => {
 }
 
 .ctrl-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--control-bg-hover, rgba(128, 128, 128, 0.14));
+}
+
+.ctrl-btn:active {
+  transform: scale(0.94);
+}
+
+.ctrl-btn:focus-visible {
+  outline: 2px solid var(--accent, #667eea);
+  outline-offset: 2px;
 }
 
 .ctrl-btn--play {
@@ -424,7 +477,7 @@ onUnmounted(() => {
 .vol-slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: linear-gradient(to right, var(--accent, #667eea) var(--vol-fill, 100%), rgba(255, 255, 255, 0.12) var(--vol-fill, 100%));
+  background: linear-gradient(to right, var(--accent, #667eea) var(--vol-fill, 100%), var(--track-bg, rgba(128, 128, 128, 0.28)) var(--vol-fill, 100%));
 }
 
 .vol-slider::-webkit-slider-thumb {

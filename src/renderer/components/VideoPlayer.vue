@@ -1,54 +1,38 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, nextTick } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { usePlayerStore } from '../stores/player'
 import { audioEngine } from '../services/audio-engine'
+
+// 和主进程 MIME_TYPES 里的视频格式保持一致
+const VIDEO_EXTENSIONS = [
+  'mp4', 'mkv', 'avi', 'webm', 'mov', 'wmv',
+  'flv', '3gp', 'ts', 'm4v', 'mpeg', 'mpg'
+]
 
 const player = usePlayerStore()
 
 const isVideo = computed(() => {
   const ext = player.currentTrack?.filePath.split('.').pop()?.toLowerCase()
-  return ['mp4', 'mkv', 'avi', 'webm'].includes(ext || '')
+  return VIDEO_EXTENSIONS.includes(ext || '')
 })
 
 const containerRef = ref<HTMLDivElement>()
 
-async function attachMedia() {
-  await nextTick()
-  if (!containerRef.value) return
-  const media = audioEngine.getMediaElement()
-  media.style.width = '100%'
-  media.style.height = '100%'
-  media.style.objectFit = 'contain'
-  media.style.display = 'block'
-  media.style.background = '#000'
-  containerRef.value.appendChild(media)
+/**
+ * 只负责登记"画面该挂在哪"，具体搬动由 audioEngine 负责。
+ * 容器用 v-show 常驻，ref 永远有效——重复打开同一个视频也不会漏掉重新挂载。
+ */
+function syncContainer() {
+  audioEngine.setVideoContainer(isVideo.value ? containerRef.value ?? null : null)
 }
 
-function detachMedia() {
-  audioEngine.returnMedia()
-}
+// sync flush：track 一变就立刻登记，赶在 audioEngine.load() 之前，避免画面闪一下
+watch(isVideo, syncContainer, { flush: 'sync' })
 
-watch(isVideo, async (show) => {
-  if (show) {
-    await attachMedia()
-  } else {
-    detachMedia()
-  }
-})
+onMounted(syncContainer)
 
-watch(() => player.currentTrack?.filePath, async () => {
-  if (isVideo.value) {
-    // Small delay to let the new src load, then re-attach
-    setTimeout(async () => {
-      await attachMedia()
-    }, 100)
-  }
-})
-
-onMounted(async () => {
-  if (isVideo.value) {
-    await attachMedia()
-  }
+onBeforeUnmount(() => {
+  audioEngine.setVideoContainer(null)
 })
 </script>
 
@@ -56,7 +40,7 @@ onMounted(async () => {
   <div
     ref="containerRef"
     class="video-container"
-    v-if="isVideo && player.currentTrack"
+    v-show="isVideo && player.currentTrack"
   ></div>
 </template>
 

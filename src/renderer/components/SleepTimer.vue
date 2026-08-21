@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useTimerStore } from '../stores/timer'
+import { useOverlayStore } from '../stores/overlay'
 
 const timer = useTimerStore()
+const overlay = useOverlayStore()
 const showPanel = ref(false)
 const customMinutes = ref<number | ''>('')
 const showCustomInput = ref(false)
@@ -11,6 +13,13 @@ function setTimer(minutes: number) {
   timer.start(minutes)
   showPanel.value = false
 }
+
+// 面板开着时禁止进入禅意模式
+watch(showPanel, (isOpen) => (isOpen ? overlay.open() : overlay.close()))
+
+onBeforeUnmount(() => {
+  if (showPanel.value) overlay.close()
+})
 
 function startCustomTimer() {
   const m = Number(customMinutes.value)
@@ -119,8 +128,8 @@ function startCustomTimer() {
   bottom: 100%;
   right: 0;
   margin-bottom: 4px;
-  background: var(--bg-elevated, #2c2c2e);
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  background: var(--bg-panel, #2c2c2e);
+  border: 1px solid var(--border-active, rgba(128, 128, 128, 0.24));
   border-radius: 10px;
   padding: 12px;
   min-width: 220px;
@@ -140,7 +149,7 @@ function startCustomTimer() {
 .timer-panel__close {
   border: none;
   background: none;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-secondary, rgba(255, 255, 255, 0.4));
   cursor: pointer;
   font-size: 14px;
 }

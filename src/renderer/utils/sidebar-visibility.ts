@@ -33,6 +33,7 @@ export interface SidebarVisibilityController {
   pointerEnter: () => void
   pointerLeave: () => void
   togglePinned: () => void
+  setPinned: (pinned: boolean) => void
   dispose: () => void
 }
 
@@ -55,6 +56,18 @@ export function createSidebarVisibilityController(
     if (visible === nextVisible) return
     visible = nextVisible
     options.onVisibilityChange(visible)
+  }
+
+  function setPinned(nextPinned: boolean) {
+    if (pinned === nextPinned) return
+    pinned = nextPinned
+    options.onPinnedChange(pinned)
+    if (pinned) {
+      clearHideTimer()
+      setVisible(true)
+    } else {
+      scheduleHide()
+    }
   }
 
   function scheduleHide() {
@@ -98,15 +111,9 @@ export function createSidebarVisibilityController(
       scheduleHide()
     },
     togglePinned() {
-      pinned = !pinned
-      options.onPinnedChange(pinned)
-      if (pinned) {
-        clearHideTimer()
-        setVisible(true)
-      } else {
-        scheduleHide()
-      }
+      setPinned(!pinned)
     },
+    setPinned,
     dispose: clearHideTimer
   }
 }

@@ -4,35 +4,40 @@ import { usePlaylistStore } from './stores/playlist'
 import { usePlayerStore } from './stores/player'
 import { useThemeStore } from './stores/theme'
 import { useVisualizerStore } from './stores/visualizer'
-import { scanFiles } from './services/file-scanner'
+import { useSettingsStore } from './stores/settings'
+import { useOverlayStore } from './stores/overlay'
 import { audioEngine } from './services/audio-engine'
-import {
-  createSidebarVisibilityController,
-  readSidebarPinned,
-  writeSidebarPinned
-} from './utils/sidebar-visibility'
+import { playbackMemory } from './services/playback-memory'
+import { openFiles as openFilesIntoPlaylist, playAt } from './services/playback-controller'
+import type { PlayMode } from './utils/types'
+import { createSidebarVisibilityController } from './utils/sidebar-visibility'
 import Player from './components/Player.vue'
 import Playlist from './components/Playlist.vue'
 import Visualizer from './components/Visualizer.vue'
 import VinylDisc from './components/VinylDisc.vue'
 import LyricsPanel from './components/LyricsPanel.vue'
-import ThemeSwitcher from './components/ThemeSwitcher.vue'
-import VisualizerSwitcher from './components/VisualizerSwitcher.vue'
+import SettingsPanel from './components/SettingsPanel.vue'
 import LotusDisc from './components/LotusDisc.vue'
 import VideoPlayer from './components/VideoPlayer.vue'
 import './themes/apple/styles.css'
 import './themes/vinyl/styles.css'
 import './themes/zen/styles.css'
 
+const PLAY_MODE_KEY = 'zen-music-playMode'
+const VOLUME_KEY = 'zen-music-volume'
+
 const playlist = usePlaylistStore()
 const player = usePlayerStore()
 const theme = useThemeStore()
 const viz = useVisualizerStore()
+const settings = useSettingsStore()
+const overlay = useOverlayStore()
 const isZenTheme = computed(() => theme.currentTheme === 'zen-ripple' || theme.currentTheme === 'zen-bloom')
 const isMaximized = ref(false)
 const isDraggingOver = ref(false)
 const sidebarVisible = ref(true)
-const sidebarPinned = ref(readSidebarPinned(localStorage))
+// 钉住 == 不自动隐藏，和设置里的开关是同一件事，只有一个真相来源
+const sidebarPinned = computed(() => !settings.playlistAutoHide)
 const zenMode = ref(false)
 let zenTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -42,8 +47,7 @@ const sidebarVisibility = createSidebarVisibilityController({
     sidebarVisible.value = visible
   },
   onPinnedChange: (pinned) => {
-    sidebarPinned.value = pinned
-    writeSidebarPinned(localStorage, pinned)
+    settings.playlistAutoHide = !pinned
   }
 })
 
@@ -67,18 +71,7 @@ async function openFiles() {
 }
 
 async function addAndPlay(filePaths: string[], autoPlay = false) {
-  const tracks = await scanFiles(filePaths)
-  if (tracks.length === 0) return
-  const shouldPlay = autoPlay || playlist.tracks.length === 0
-  const startIdx = playlist.tracks.length
-  playlist.addTracks(tracks)
-  if (shouldPlay) {
-    const track = playlist.tracks[startIdx]
-    playlist.setCurrentIndex(startIdx)
-    player.setTrack(track)
-    audioEngine.connectAnalyser()
-    await audioEngine.load(track.filePath)
-  }
+  await openFilesIntoPlaylist(filePaths, { autoPlay })
   sidebarVisibility.show()
 }
 
@@ -90,37 +83,59 @@ function wakeZen() {
   zenMode.value = false
   if (zenTimer) clearTimeout(zenTimer)
   zenTimer = setTimeout(() => {
-    if (player.isPlaying && playlist.tracks.length > 0) {
+    if (player.isPlaying && playlist.tracks.length > 0 && !overlay.hasOpen) {
       zenMode.value = true
     }
   }, 5000)
 }
 
+function restorePlayMode() {
+  if (settings.startupPlayMode !== 'remember') {
+    player.setPlayMode(settings.startupPlayMode)
+    return
+  }
+  const saved = localStorage.getItem(PLAY_MODE_KEY)
+  if (saved && ['loop', 'single', 'shuffle'].includes(saved)) {
+    player.setPlayMode(saved as PlayMode)
+  }
+}
+
+function restoreVolume() {
+  if (settings.startupVolumeMode === 'fixed') {
+    player.setVolume(settings.defaultVolume)
+  } else {
+    const raw = localStorage.getItem(VOLUME_KEY)
+    const saved = raw === null ? Number.NaN : Number(raw)
+    const usable = Number.isFinite(saved) && saved >= 0 && saved <= 1
+    player.setVolume(usable ? saved : settings.defaultVolume)
+  }
+  // 以前只改 store 不改 media 元素，界面显示 80% 实际却在满音量播放
+  audioEngine.setVolume(player.volume)
+}
+
 onMounted(() => {
+  settings.init()
   theme.init()
   viz.init()
+  playbackMemory.load()
 
-  // Restore playlist from localStorage
+  // 设置里的自动隐藏开关和侧栏控制器保持同步
+  sidebarVisibility.setPinned(sidebarPinned.value)
+  watch(sidebarPinned, (pinned) => sidebarVisibility.setPinned(pinned))
+
+  // Restore playlist from localStorage（顺手清掉历史存档里重复的条目）
   const saved = localStorage.getItem('zen-music-playlist')
   if (saved) {
     try { playlist.fromJSON(JSON.parse(saved)) } catch {}
   }
 
+  restorePlayMode()
+  restoreVolume()
+
   // Restore current track and auto-play
   if (playlist.tracks.length > 0 && playlist.currentIndex >= 0) {
-    const track = playlist.tracks[playlist.currentIndex]
-    if (track) {
-      player.setTrack(track)
-      audioEngine.connectAnalyser()
-      audioEngine.load(track.filePath)
-    }
+    void playAt(playlist.currentIndex, { fromUserPick: true })
     sidebarVisibility.show()
-  }
-
-  // Restore play mode
-  const savedPlayMode = localStorage.getItem('zen-music-playMode')
-  if (savedPlayMode && ['loop', 'single', 'shuffle'].includes(savedPlayMode)) {
-    player.setPlayMode(savedPlayMode as 'loop' | 'single' | 'shuffle')
   }
 
   const savedTheme = localStorage.getItem('zen-music-theme')
@@ -129,6 +144,9 @@ onMounted(() => {
     const resolved = savedTheme === 'zen' ? 'zen-ripple' : savedTheme
     theme.setTheme(resolved)
   }
+
+  // 关窗前把播放进度落盘，"接着上次"才靠得住
+  window.addEventListener('beforeunload', () => playbackMemory.flush())
 
   // Timer: pause playback when timer expires
   window.addEventListener('timer:expired', () => {
@@ -183,6 +201,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   sidebarVisibility.dispose()
+  playbackMemory.flush()
   if (zenTimer) clearTimeout(zenTimer)
 })
 
@@ -193,12 +212,27 @@ watch(() => [playlist.tracks, playlist.currentIndex, playlist.activeListId], () 
 
 // Persist play mode
 watch(() => player.playMode, (mode) => {
-  localStorage.setItem('zen-music-playMode', mode)
+  localStorage.setItem(PLAY_MODE_KEY, mode)
+})
+
+// Persist volume（"打开时的音量 = 记住上次"要用）
+watch(() => player.volume, (v) => {
+  localStorage.setItem(VOLUME_KEY, String(v))
 })
 
 // Persist theme
 watch(() => theme.currentTheme, (t) => {
   localStorage.setItem('zen-music-theme', t)
+})
+
+// 设置 / 定时面板开着时不淡出；关掉后重新开始倒计时
+watch(() => overlay.hasOpen, (hasOpen) => {
+  if (hasOpen) {
+    zenMode.value = false
+    if (zenTimer) clearTimeout(zenTimer)
+  } else {
+    wakeZen()
+  }
 })
 
 // Exit zen mode when paused
@@ -217,8 +251,7 @@ watch(() => player.isPlaying, (playing) => {
       <div class="title-bar__drag">
         <span class="title-bar__title">Zen·Music</span>
       </div>
-      <ThemeSwitcher />
-      <VisualizerSwitcher />
+      <SettingsPanel />
       <div class="title-bar__controls">
         <button class="title-bar__btn" @click="handleMinimize">
           <svg width="12" height="12" viewBox="0 0 12 12">
@@ -347,11 +380,15 @@ html, body, #app {
 .title-bar {
   display: flex;
   align-items: center;
+  gap: 2px;
   height: var(--titlebar-height, 38px);
   -webkit-app-region: drag;
   background: var(--titlebar-bg, rgba(0, 0, 0, 0.3));
   flex-shrink: 0;
   transition: opacity 0.8s ease;
+  /* 设置面板要盖在视频画面（z-index:10）上面 */
+  position: relative;
+  z-index: 30;
 }
 
 .title-bar__drag {
