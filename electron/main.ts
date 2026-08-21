@@ -164,6 +164,10 @@ app.whenReady().then(() => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    else if (mainWindow) {
+      mainWindow.show()
+      mainWindow.focus()
+    }
   })
 })
 
@@ -205,6 +209,10 @@ function createTray() {
 // macOS: open file when app is already running
 app.on('open-file', (e, filePath) => {
   e.preventDefault()
+  if (mainWindow) {
+    mainWindow.show()
+    mainWindow.focus()
+  }
   sendFilesToRenderer([filePath])
 })
 
@@ -220,6 +228,7 @@ if (!gotLock) {
     })
     if (file) {
       if (mainWindow) {
+        mainWindow.show()
         if (mainWindow.isMinimized()) mainWindow.restore()
         mainWindow.focus()
       }

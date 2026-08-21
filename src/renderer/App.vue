@@ -106,11 +106,21 @@ onMounted(() => {
     try { playlist.fromJSON(JSON.parse(saved)) } catch {}
   }
 
-  // Restore current track (without auto-playing) so UI isn't blank
+  // Restore current track and auto-play
   if (playlist.tracks.length > 0 && playlist.currentIndex >= 0) {
     const track = playlist.tracks[playlist.currentIndex]
-    if (track) player.setTrack(track, false)
+    if (track) {
+      player.setTrack(track)
+      audioEngine.connectAnalyser()
+      audioEngine.load(track.filePath)
+    }
     sidebarVisibility.show()
+  }
+
+  // Restore play mode
+  const savedPlayMode = localStorage.getItem('zen-music-playMode')
+  if (savedPlayMode && ['loop', 'single', 'shuffle'].includes(savedPlayMode)) {
+    player.setPlayMode(savedPlayMode as 'loop' | 'single' | 'shuffle')
   }
 
   const savedTheme = localStorage.getItem('zen-music-theme')
@@ -180,6 +190,11 @@ onUnmounted(() => {
 watch(() => [playlist.tracks, playlist.currentIndex, playlist.activeListId], () => {
   localStorage.setItem('zen-music-playlist', JSON.stringify(playlist.toJSON()))
 }, { deep: true })
+
+// Persist play mode
+watch(() => player.playMode, (mode) => {
+  localStorage.setItem('zen-music-playMode', mode)
+})
 
 // Persist theme
 watch(() => theme.currentTheme, (t) => {

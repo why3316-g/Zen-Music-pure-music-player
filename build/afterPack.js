@@ -1,6 +1,9 @@
 const { rcedit } = require('rcedit')
 const path = require('path')
 
+// 版本号从 package.json 动态读取，避免与实际版本脱节
+const { version } = require('../package.json')
+
 exports.default = async function(context) {
   if (context.electronPlatformName !== 'win32') return
 
@@ -10,8 +13,8 @@ exports.default = async function(context) {
   console.log('Setting icon on', exePath)
   await rcedit(exePath, {
     icon: iconPath,
-    'file-version': '0.1.0',
-    'product-version': '0.1.0',
+    'file-version': version,
+    'product-version': version,
     'version-string': {
       CompanyName: 'Zen·Music',
       FileDescription: 'Zen·Music Player',

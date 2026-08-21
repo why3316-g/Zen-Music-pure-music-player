@@ -1,6 +1,6 @@
 {
   "name": "zen-music",
-  "version": "0.1.0",
+  "version": "1.1.4",
   "author": "Zen·Music",
   "type": "commonjs",
   "main": "./out/main/main.js",
@@ -9,7 +9,8 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "pack": "electron-builder --win --dir",
-    "predist": "npm run build",
+    "version:bump": "node scripts/bump-version.js",
+    "predist": "npm run version:bump && npm run build",
     "dist": "electron-builder --win",
     "test": "vitest run",
     "test:watch": "vitest"
